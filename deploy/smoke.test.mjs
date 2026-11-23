@@ -78,8 +78,12 @@ function openSocket(t, token) {
 test("Nakama is healthy and reports the built revision", async () => {
   const health = await fetch(url + "/healthcheck", { signal: AbortSignal.timeout(5000) });
   assert.equal(health.status, 200);
-  const status = await rpc(await authenticate(), "deployment_status");
+  const token = await authenticate();
+  const status = await rpc(token, "deployment_status");
   assert.deepEqual(status, { status: "ok", version: process.env.APP_VERSION ?? "dev" });
+  const updateInfo = await rpc(token, "check_update", { client_version: "0.9.0" });
+  assert.equal(updateInfo.ok, true);
+  assert.ok("server_version" in updateInfo);
 });
 
 test("two accounts can create, find, and join the same co-op room", async (t) => {

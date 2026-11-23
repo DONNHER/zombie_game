@@ -16,6 +16,36 @@ signal realtime_disconnected(reason: String)
 const DEFAULT_SERVER_KEY := "defaultkey"
 const COLLECTION_SAVES := "player_saves"
 const KEY_PROFILE := "profile_v1"
+const CLIENT_VERSION := "1.0.0"
+
+func get_client_version() -> String:
+	return str(SaveManager.settings.get("client_version", CLIENT_VERSION))
+
+func set_client_version(ver: String) -> void:
+	SaveManager.write_settings({"client_version": ver})
+
+func check_patch_status() -> Dictionary:
+	var cur_ver := get_client_version()
+	if session_token == "":
+		var auth_res := await authenticate_guest()
+		if not bool(auth_res.get("ok", false)):
+			return {"has_patch": false, "error": auth_res.get("error", "Offline"), "client_version": cur_ver}
+	var rpc_res := await _call_rpc("check_update", {"client_version": cur_ver})
+	if bool(rpc_res.get("ok", false)) and rpc_res.has("has_patch"):
+		return rpc_res
+	# Fallback to deployment_status RPC
+	var dep_res := await _call_rpc("deployment_status", {})
+	if bool(dep_res.get("status", "") == "ok"):
+		var s_ver := str(dep_res.get("version", ""))
+		if s_ver != "" and s_ver != "dev" and s_ver != cur_ver:
+			return {
+				"ok": true,
+				"has_patch": true,
+				"server_version": s_ver,
+				"client_version": cur_ver,
+				"release_url": "https://github.com/DONNHER/zombie_game/releases/latest"
+			}
+	return {"ok": true, "has_patch": false, "server_version": cur_ver, "client_version": cur_ver}
 
 var server_key: String = DEFAULT_SERVER_KEY
 var server_url: String = "http://127.0.0.1:7350"

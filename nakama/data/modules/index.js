@@ -272,6 +272,28 @@ function rpcDeploymentStatus(ctx) {
   return JSON.stringify({ status: "ok", version: (ctx.env && ctx.env.APP_VERSION) || "dev" });
 }
 
+function rpcCheckUpdate(ctx, logger, nk, payload) {
+  var clientVersion = "1.0.0";
+  try {
+    if (payload) {
+      var data = typeof payload === "string" ? JSON.parse(payload) : payload;
+      if (typeof data === "string") data = JSON.parse(data);
+      if (data && data.client_version) clientVersion = String(data.client_version);
+    }
+  } catch (e) {
+    logger.warn("rpcCheckUpdate parse warning: " + e);
+  }
+  var serverVersion = (ctx.env && ctx.env.APP_VERSION) || "1.0.0";
+  var hasPatch = (serverVersion !== "dev" && serverVersion !== "" && serverVersion !== clientVersion);
+  return JSON.stringify({
+    ok: true,
+    server_version: serverVersion,
+    client_version: clientVersion,
+    has_patch: hasPatch,
+    release_url: "https://github.com/DONNHER/zombie_game/releases/latest"
+  });
+}
+
 function InitModule(ctx, logger, nk, initializer) {
   try {
     nk.leaderboardCreate(LEADERBOARD_TOTAL, false, "desc", "best", "", {}, false);
@@ -295,6 +317,7 @@ function InitModule(ctx, logger, nk, initializer) {
   initializer.registerRpc("find_room_by_code", rpcFindRoomByCode);
   initializer.registerRpc("commit_match_result", rpcCommitMatchResult);
   initializer.registerRpc("deployment_status", rpcDeploymentStatus);
+  initializer.registerRpc("check_update", rpcCheckUpdate);
 
   logger.info("Zombie Apocalypse: Ranger Outbreak Nakama Runtime initialized!");
 }
