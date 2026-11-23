@@ -1,0 +1,6 @@
+{
+  "name": "Zombie Apocalypse: Ranger Outbreak",
+  "description": "2D top-down blocky zombie survival game built in Godot 4.7 GDScript with local device saves, 5 story stages with bosses, endless wave survival, manga story cutscenes, weapon upgrades, and Nakama co-op multiplayer.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

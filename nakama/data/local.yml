@@ -1,0 +1,21 @@
+name: ranger-outbreak
+data_dir: "/nakama/data"
+
+logger:
+  level: "INFO"
+
+socket:
+  server_key: "defaultkey"
+  port: 7350
+  max_message_size_bytes: 65536
+
+console:
+  port: 7351
+  username: "admin"
+  password: "password"
+
+session:
+  token_expiry_sec: 86400
+
+runtime:
+  js_entrypoint: "index.js"

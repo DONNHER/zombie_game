@@ -1,0 +1,138 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/social_modal.gd" id="1_social"]
+
+[node name="SocialModal" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_social")
+
+[node name="Backdrop" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0392157, 0.054902, 0.0784314, 0.88)
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(820, 520)
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Center/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 18
+
+[node name="VBox" type="VBoxContainer" parent="Center/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Header" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Center/Panel/Margin/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 20
+text = "SQUAD FRIENDS & COMMAND CHAT"
+
+[node name="CloseBtn" type="Button" parent="Center/Panel/Margin/VBox/Header"]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+text = "✕"
+
+[node name="OfflineNotice" type="Label" parent="Center/Panel/Margin/VBox"]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.980392, 0.74902, 0.141176, 1)
+text = "Offline mode active — connect to Nakama Online to sync squad friends and live global chat."
+autowrap_mode = 2
+
+[node name="Body" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="FriendsCol" type="VBoxContainer" parent="Center/Panel/Margin/VBox/Body"]
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="FriendsTitle" type="Label" parent="Center/Panel/Margin/VBox/Body/FriendsCol"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "Squad Friends"
+
+[node name="AddRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox/Body/FriendsCol"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="AddInput" type="LineEdit" parent="Center/Panel/Margin/VBox/Body/FriendsCol/AddRow"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Add friend by callsign..."
+
+[node name="AddBtn" type="Button" parent="Center/Panel/Margin/VBox/Body/FriendsCol/AddRow"]
+custom_minimum_size = Vector2(72, 40)
+layout_mode = 2
+text = "Add"
+
+[node name="FriendsScroll" type="ScrollContainer" parent="Center/Panel/Margin/VBox/Body/FriendsCol"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="FriendsList" type="VBoxContainer" parent="Center/Panel/Margin/VBox/Body/FriendsCol/FriendsScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="ChatCol" type="VBoxContainer" parent="Center/Panel/Margin/VBox/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="ChatTitle" type="Label" parent="Center/Panel/Margin/VBox/Body/ChatCol"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "Global Command Radio"
+
+[node name="ChatScroll" type="ScrollContainer" parent="Center/Panel/Margin/VBox/Body/ChatCol"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ChatList" type="VBoxContainer" parent="Center/Panel/Margin/VBox/Body/ChatCol/ChatScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="SendRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox/Body/ChatCol"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ChatInput" type="LineEdit" parent="Center/Panel/Margin/VBox/Body/ChatCol/SendRow"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Transmit message to squad..."
+
+[node name="SendBtn" type="Button" parent="Center/Panel/Margin/VBox/Body/ChatCol/SendRow"]
+custom_minimum_size = Vector2(88, 40)
+layout_mode = 2
+text = "Send"

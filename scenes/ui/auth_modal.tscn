@@ -1,0 +1,137 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/auth_modal.gd" id="1_auth"]
+
+[node name="AuthModal" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_auth")
+
+[node name="Backdrop" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0392157, 0.054902, 0.0784314, 0.88)
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(490, 0)
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Center/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 22
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 22
+theme_override_constants/margin_bottom = 20
+
+[node name="VBox" type="VBoxContainer" parent="Center/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="HeaderRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Center/Panel/Margin/VBox/HeaderRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 20
+text = "NAKAMA CO-OP & LOCAL PROFILE"
+
+[node name="CloseBtn" type="Button" parent="Center/Panel/Margin/VBox/HeaderRow"]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+text = "✕"
+
+[node name="ModeTabs" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LoginTabBtn" type="Button" parent="Center/Panel/Margin/VBox/ModeTabs"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Sign In Online"
+
+[node name="RegisterTabBtn" type="Button" parent="Center/Panel/Margin/VBox/ModeTabs"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Create Account"
+
+[node name="ServerLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.580392, 0.639216, 0.721569, 1)
+theme_override_font_sizes/font_size = 12
+text = "Nakama Server URL (e.g. http://192.168.1.50:7350 on LAN)"
+
+[node name="ServerInput" type="LineEdit" parent="Center/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+text = "http://127.0.0.1:7350"
+placeholder_text = "http://127.0.0.1:7350"
+
+[node name="UserInput" type="LineEdit" parent="Center/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+placeholder_text = "Callsign / Username (min 3 chars)"
+
+[node name="PassInput" type="LineEdit" parent="Center/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+placeholder_text = "Passcode (min 4 chars)"
+secret = true
+
+[node name="ErrorBox" type="PanelContainer" parent="Center/Panel/Margin/VBox"]
+visible = false
+layout_mode = 2
+
+[node name="ErrorVBox" type="VBoxContainer" parent="Center/Panel/Margin/VBox/ErrorBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ErrorLabel" type="Label" parent="Center/Panel/Margin/VBox/ErrorBox/ErrorVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.988235, 0.647059, 0.647059, 1)
+text = "Server unreachable."
+autowrap_mode = 2
+
+[node name="FallbackOfflineBtn" type="Button" parent="Center/Panel/Margin/VBox/ErrorBox/ErrorVBox"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+text = "Switch to Offline Mode Now"
+
+[node name="SubmitBtn" type="Button" parent="Center/Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+text = "Connect & Sign In"
+
+[node name="ActionRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="GuestBtn" type="Button" parent="Center/Panel/Margin/VBox/ActionRow"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Online Guest"
+
+[node name="OfflineBtn" type="Button" parent="Center/Panel/Margin/VBox/ActionRow"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Play Offline"

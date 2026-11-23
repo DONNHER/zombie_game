@@ -1,0 +1,66 @@
+[gd_scene load_steps=16 format=3]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="PackedScene" path="res://scenes/game/game_arena.tscn" id="2_arena"]
+[ext_resource type="PackedScene" path="res://scenes/ui/splash_screen.tscn" id="3_splash"]
+[ext_resource type="PackedScene" path="res://scenes/ui/lobby_hub.tscn" id="4_lobby"]
+[ext_resource type="PackedScene" path="res://scenes/ui/story_cutscene_modal.tscn" id="5_story"]
+[ext_resource type="PackedScene" path="res://scenes/ui/game_hud.tscn" id="6_hud"]
+[ext_resource type="PackedScene" path="res://scenes/ui/bunker_shop_modal.tscn" id="7_shop"]
+[ext_resource type="PackedScene" path="res://scenes/ui/pause_modal.tscn" id="8_pause"]
+[ext_resource type="PackedScene" path="res://scenes/ui/result_modal.tscn" id="9_result"]
+[ext_resource type="PackedScene" path="res://scenes/ui/auth_modal.tscn" id="10_auth"]
+[ext_resource type="PackedScene" path="res://scenes/ui/armory_modal.tscn" id="11_armory"]
+[ext_resource type="PackedScene" path="res://scenes/ui/social_modal.tscn" id="12_social"]
+[ext_resource type="PackedScene" path="res://scenes/ui/leaderboard_modal.tscn" id="13_lb"]
+[ext_resource type="PackedScene" path="res://scenes/ui/online_room_modal.tscn" id="14_room"]
+[ext_resource type="PackedScene" path="res://scenes/ui/settings_modal.tscn" id="15_settings"]
+
+[node name="Main" type="Node"]
+script = ExtResource("1_main")
+
+[node name="WorldLayer" type="Node2D" parent="."]
+
+[node name="GameArena" parent="WorldLayer" instance=ExtResource("2_arena")]
+visible = false
+
+[node name="UILayer" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="LobbyHub" parent="UILayer" instance=ExtResource("4_lobby")]
+visible = false
+
+[node name="GameHUD" parent="UILayer" instance=ExtResource("6_hud")]
+visible = false
+
+[node name="StoryCutsceneModal" parent="UILayer" instance=ExtResource("5_story")]
+visible = false
+
+[node name="BunkerShopModal" parent="UILayer" instance=ExtResource("7_shop")]
+visible = false
+
+[node name="PauseModal" parent="UILayer" instance=ExtResource("8_pause")]
+visible = false
+
+[node name="ResultModal" parent="UILayer" instance=ExtResource("9_result")]
+visible = false
+
+[node name="ArmoryModal" parent="UILayer" instance=ExtResource("11_armory")]
+visible = false
+
+[node name="SocialModal" parent="UILayer" instance=ExtResource("12_social")]
+visible = false
+
+[node name="LeaderboardModal" parent="UILayer" instance=ExtResource("13_lb")]
+visible = false
+
+[node name="OnlineRoomModal" parent="UILayer" instance=ExtResource("14_room")]
+visible = false
+
+[node name="SettingsModal" parent="UILayer" instance=ExtResource("15_settings")]
+visible = false
+
+[node name="AuthModal" parent="UILayer" instance=ExtResource("10_auth")]
+visible = false
+
+[node name="SplashScreen" parent="UILayer" instance=ExtResource("3_splash")]

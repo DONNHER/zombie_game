@@ -1,0 +1,66 @@
+name: Nakama CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      RANGER_COMPOSE_PROJECT: ranger-outbreak-ci
+      NAKAMA_BIND_IP: 127.0.0.1
+      NAKAMA_PORT: "17350"
+      APP_VERSION: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - name: Check JavaScript and shell syntax
+        run: |
+          node --check nakama/data/modules/index.js
+          node --check deploy/smoke.test.mjs
+          bash -n deploy/server.sh
+          sh -n deploy/start-nakama.sh
+      - name: Start an isolated Nakama and PostgreSQL stack
+        env:
+          RANGER_SERVER_ENV: ${{ runner.temp }}/ranger-ci.env
+        run: |
+          bash deploy/server.sh init
+          bash deploy/server.sh deploy "$APP_VERSION"
+      - name: Test health, version, and multiplayer
+        run: node --test deploy/smoke.test.mjs
+      - name: Stop the test stack
+        if: always()
+        env:
+          RANGER_SERVER_ENV: ${{ runner.temp }}/ranger-ci.env
+        run: |
+          if [ -f "$RANGER_SERVER_ENV" ]; then
+            bash deploy/server.sh down "$APP_VERSION"
+          fi
+
+  deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, Linux, X64, ranger-kali]
+    timeout-minutes: 10
+    concurrency:
+      group: ranger-kali-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Deploy and verify the new commit
+        run: bash deploy/server.sh deploy "$GITHUB_SHA"

@@ -1,0 +1,239 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/lobby_hub.gd" id="1_lobby"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hero_preview.tscn" id="2_hero"]
+
+[node name="LobbyHub" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_lobby")
+
+[node name="Bg" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0666667, 0.0862745, 0.117647, 1)
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 14
+
+[node name="RootVBox" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="TopBar" type="HBoxContainer" parent="Margin/RootVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BrandTitle" type="Label" parent="Margin/RootVBox/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.960784, 0.619608, 0.0431373, 1)
+theme_override_font_sizes/font_size = 19
+text = "ZOMBIE APOCALYPSE: COMMAND HUB"
+
+[node name="ArmoryBtn" type="Button" parent="Margin/RootVBox/TopBar"]
+custom_minimum_size = Vector2(96, 40)
+layout_mode = 2
+text = "Armory"
+
+[node name="SocialBtn" type="Button" parent="Margin/RootVBox/TopBar"]
+custom_minimum_size = Vector2(90, 40)
+layout_mode = 2
+text = "Social"
+
+[node name="LeaderboardBtn" type="Button" parent="Margin/RootVBox/TopBar"]
+custom_minimum_size = Vector2(118, 40)
+layout_mode = 2
+text = "Rankings"
+
+[node name="SettingsBtn" type="Button" parent="Margin/RootVBox/TopBar"]
+custom_minimum_size = Vector2(96, 40)
+layout_mode = 2
+text = "Settings"
+
+[node name="AuthBtn" type="Button" parent="Margin/RootVBox/TopBar"]
+custom_minimum_size = Vector2(140, 40)
+layout_mode = 2
+text = "Offline Save"
+
+[node name="Columns" type="HBoxContainer" parent="Margin/RootVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="HeroCol" type="PanelContainer" parent="Margin/RootVBox/Columns"]
+custom_minimum_size = Vector2(400, 0)
+layout_mode = 2
+
+[node name="HeroScroll" type="ScrollContainer" parent="Margin/RootVBox/Columns/HeroCol"]
+layout_mode = 2
+
+[node name="HeroVBox" type="VBoxContainer" parent="Margin/RootVBox/Columns/HeroCol/HeroScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="CallsignLabel" type="Label" parent="Margin/RootVBox/Columns/HeroCol/HeroScroll/HeroVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Ranger · Lv.1"
+
+[node name="XpBar" type="ProgressBar" parent="Margin/RootVBox/Columns/HeroCol/HeroScroll/HeroVBox"]
+custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
+show_percentage = false
+
+[node name="HeroPreview" parent="Margin/RootVBox/Columns/HeroCol/HeroScroll/HeroVBox" instance=ExtResource("2_hero")]
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="ClassRow" type="HBoxContainer" parent="Margin/RootVBox/Columns/HeroCol/HeroScroll/HeroVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RangerBtn" type="Button" parent="Margin/RootVBox/Columns/HeroCol/HeroScroll/HeroVBox/ClassRow"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Ranger (Gun)"
+
+[node name="MedicBtn" type="Button" parent="Margin/RootVBox/Columns/HeroCol/HeroScroll/HeroVBox/ClassRow"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Medic (Pulse)"
+
+[node name="GenderRow" type="HBoxContainer" parent="Margin/RootVBox/Columns/HeroCol/HeroScroll/HeroVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="MaleBtn" type="Button" parent="Margin/RootVBox/Columns/HeroCol/HeroScroll/HeroVBox/GenderRow"]
+custom_minimum_size = Vector2(0, 38)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Male"
+
+[node name="FemaleBtn" type="Button" parent="Margin/RootVBox/Columns/HeroCol/HeroScroll/HeroVBox/GenderRow"]
+custom_minimum_size = Vector2(0, 38)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Female"
+
+[node name="WeaponSummary" type="Label" parent="Margin/RootVBox/Columns/HeroCol/HeroScroll/HeroVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.219608, 0.741176, 0.972549, 1)
+text = "Equipped: Basic Pistol"
+autowrap_mode = 2
+
+[node name="WalletLabel" type="Label" parent="Margin/RootVBox/Columns/HeroCol/HeroScroll/HeroVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.960784, 0.619608, 0.0431373, 1)
+text = "150 SP · 0 Boss Tokens"
+
+[node name="CareerStats" type="Label" parent="Margin/RootVBox/Columns/HeroCol/HeroScroll/HeroVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.580392, 0.639216, 0.721569, 1)
+text = "Kills: 0 · Bosses: 0 · Best Wave: 0"
+autowrap_mode = 2
+
+[node name="TutorialBtn" type="Button" parent="Margin/RootVBox/Columns/HeroCol/HeroScroll/HeroVBox"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Play Training Tutorial (No Death)"
+
+[node name="MissionCol" type="PanelContainer" parent="Margin/RootVBox/Columns"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="MissionVBox" type="VBoxContainer" parent="Margin/RootVBox/Columns/MissionCol"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="NetRow" type="HBoxContainer" parent="Margin/RootVBox/Columns/MissionCol/MissionVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="OfflineModeBtn" type="Button" parent="Margin/RootVBox/Columns/MissionCol/MissionVBox/NetRow"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Offline Solo (Airplane Safe)"
+
+[node name="OnlineModeBtn" type="Button" parent="Margin/RootVBox/Columns/MissionCol/MissionVBox/NetRow"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Online Co-op (Nakama)"
+
+[node name="ServerErrorBanner" type="PanelContainer" parent="Margin/RootVBox/Columns/MissionCol/MissionVBox"]
+visible = false
+layout_mode = 2
+
+[node name="ErrRow" type="HBoxContainer" parent="Margin/RootVBox/Columns/MissionCol/MissionVBox/ServerErrorBanner"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ErrMsg" type="Label" parent="Margin/RootVBox/Columns/MissionCol/MissionVBox/ServerErrorBanner/ErrRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.988235, 0.647059, 0.647059, 1)
+text = "Multiplayer server unreachable."
+autowrap_mode = 2
+
+[node name="ErrOfflineBtn" type="Button" parent="Margin/RootVBox/Columns/MissionCol/MissionVBox/ServerErrorBanner/ErrRow"]
+custom_minimum_size = Vector2(130, 36)
+layout_mode = 2
+text = "Play Offline"
+
+[node name="ModeRow" type="HBoxContainer" parent="Margin/RootVBox/Columns/MissionCol/MissionVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="StoryModeBtn" type="Button" parent="Margin/RootVBox/Columns/MissionCol/MissionVBox/ModeRow"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Story Campaign (5 Stages)"
+
+[node name="EndlessModeBtn" type="Button" parent="Margin/RootVBox/Columns/MissionCol/MissionVBox/ModeRow"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Endless Portal Survival"
+
+[node name="StarsBanner" type="Label" parent="Margin/RootVBox/Columns/MissionCol/MissionVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.980392, 0.74902, 0.141176, 1)
+text = "CAMPAIGN STARS COLLECTED: 0 / 15 ★"
+
+[node name="StageScroll" type="ScrollContainer" parent="Margin/RootVBox/Columns/MissionCol/MissionVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="StagesList" type="VBoxContainer" parent="Margin/RootVBox/Columns/MissionCol/MissionVBox/StageScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="DeployBtn" type="Button" parent="Margin/RootVBox/Columns/MissionCol/MissionVBox"]
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "DEPLOY TO STAGE 1"

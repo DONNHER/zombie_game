@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/hero_preview.gd" id="1_hero"]
+
+[node name="HeroPreview" type="Control"]
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 3
+anchors_preset = 0
+offset_right = 96.0
+offset_bottom = 96.0
+script = ExtResource("1_hero")

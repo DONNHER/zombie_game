@@ -1,0 +1,267 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/game_hud.gd" id="1_hud"]
+[ext_resource type="PackedScene" path="res://scenes/ui/touch_controls.tscn" id="2_touch"]
+
+[node name="GameHUD" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_hud")
+
+[node name="TopMargin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 148.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+
+[node name="TopRow" type="HBoxContainer" parent="TopMargin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="StatsCard" type="PanelContainer" parent="TopMargin/TopRow"]
+custom_minimum_size = Vector2(270, 0)
+layout_mode = 2
+
+[node name="StatsVBox" type="VBoxContainer" parent="TopMargin/TopRow/StatsCard"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="HeroLbl" type="Label" parent="TopMargin/TopRow/StatsCard/StatsVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Ranger · HP 120/120"
+
+[node name="HpBar" type="ProgressBar" parent="TopMargin/TopRow/StatsCard/StatsVBox"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+max_value = 120.0
+value = 120.0
+show_percentage = false
+
+[node name="SecLbl" type="Label" parent="TopMargin/TopRow/StatsCard/StatsVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.219608, 0.741176, 0.972549, 1)
+theme_override_font_sizes/font_size = 12
+text = "Ammo 12/12 · Mana 100"
+
+[node name="EconomyLbl" type="Label" parent="TopMargin/TopRow/StatsCard/StatsVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.980392, 0.74902, 0.141176, 1)
+theme_override_font_sizes/font_size = 12
+text = "Coins: 100 · SP: 0"
+
+[node name="SquadLbl" type="Label" parent="TopMargin/TopRow/StatsCard/StatsVBox"]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.580392, 0.639216, 0.721569, 1)
+theme_override_font_sizes/font_size = 11
+autowrap_mode = 2
+
+[node name="CenterCard" type="PanelContainer" parent="TopMargin/TopRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="CenterVBox" type="VBoxContainer" parent="TopMargin/TopRow/CenterCard"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="StageWaveLbl" type="Label" parent="TopMargin/TopRow/CenterCard/CenterVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Stage 1: Abandoned Village · Wave 1/5"
+horizontal_alignment = 1
+
+[node name="GoalLbl" type="Label" parent="TopMargin/TopRow/CenterCard/CenterVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.580392, 0.639216, 0.721569, 1)
+theme_override_font_sizes/font_size = 12
+text = "Goal: Hold bunker & clear all 5 waves"
+horizontal_alignment = 1
+
+[node name="ClockLbl" type="Label" parent="TopMargin/TopRow/CenterCard/CenterVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.988235, 0.827451, 0.301961, 1)
+theme_override_font_sizes/font_size = 12
+text = "Bunker 1 · Day 12:00 PM · Hostiles: 0"
+horizontal_alignment = 1
+
+[node name="BossBox" type="VBoxContainer" parent="TopMargin/TopRow/CenterCard/CenterVBox"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="BossNameLbl" type="Label" parent="TopMargin/TopRow/CenterCard/CenterVBox/BossBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.937255, 0.266667, 0.266667, 1)
+theme_override_font_sizes/font_size = 13
+text = "BOSS: CHIEF ROTJAW"
+horizontal_alignment = 1
+
+[node name="BossBar" type="ProgressBar" parent="TopMargin/TopRow/CenterCard/CenterVBox/BossBox"]
+custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
+max_value = 950.0
+value = 950.0
+show_percentage = false
+
+[node name="TopSpacer" type="Control" parent="TopMargin/TopRow"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="RightBtns" type="HBoxContainer" parent="TopMargin/TopRow"]
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_constants/separation = 6
+
+[node name="DetailsBtn" type="Button" parent="TopMargin/TopRow/RightBtns"]
+custom_minimum_size = Vector2(44, 44)
+layout_mode = 2
+text = "−"
+
+[node name="HelpBtn" type="Button" parent="TopMargin/TopRow/RightBtns"]
+custom_minimum_size = Vector2(44, 44)
+layout_mode = 2
+text = "?"
+
+[node name="SettingsBtn" type="Button" parent="TopMargin/TopRow/RightBtns"]
+custom_minimum_size = Vector2(44, 44)
+layout_mode = 2
+
+[node name="SettingsMenu" type="PanelContainer" parent="."]
+visible = false
+layout_mode = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -212.0
+offset_top = 60.0
+offset_right = -14.0
+offset_bottom = 264.0
+grow_horizontal = 0
+
+[node name="MenuVBox" type="VBoxContainer" parent="SettingsMenu"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="PauseBtn" type="Button" parent="SettingsMenu/MenuVBox"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Pause"
+
+[node name="RestartBtn" type="Button" parent="SettingsMenu/MenuVBox"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Retry Stage"
+
+[node name="MuteBtn" type="Button" parent="SettingsMenu/MenuVBox"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Sound On"
+
+[node name="OptionsBtn" type="Button" parent="SettingsMenu/MenuVBox"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Settings"
+
+[node name="BannerStack" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -290.0
+offset_top = 112.0
+offset_right = 290.0
+offset_bottom = 228.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="TutorialCard" type="PanelContainer" parent="BannerStack"]
+visible = false
+layout_mode = 2
+
+[node name="TutLbl" type="Label" parent="BannerStack/TutorialCard"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.219608, 0.741176, 0.972549, 1)
+text = "Tutorial Hint..."
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="NextWaveBtn" type="Button" parent="BannerStack"]
+visible = false
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "WAVE CLEARED — DEPLOY NEXT WAVE (SPACE / TAP)"
+
+[node name="ToastLbl" type="Label" parent="BannerStack"]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.980392, 0.74902, 0.141176, 1)
+text = "Status"
+horizontal_alignment = 1
+
+[node name="BottomMargin" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="SkillBar" type="Control" parent="BottomMargin"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="BottomShop" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -74.0
+offset_top = -76.0
+offset_right = 74.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+
+[node name="ShopBtn" type="Button" parent="BottomShop"]
+layout_mode = 2
+text = "SHOP"
+
+[node name="InventoryBar" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = 80.0
+offset_top = -76.0
+offset_right = 360.0
+offset_bottom = -16.0
+grow_vertical = 0
+mouse_filter = 2
+theme_override_constants/separation = 3
+
+[node name="TouchControls" parent="." instance=ExtResource("2_touch")]
+layout_mode = 1

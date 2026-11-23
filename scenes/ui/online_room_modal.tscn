@@ -1,0 +1,174 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/online_room_modal.gd" id="1_room"]
+
+[node name="OnlineRoomModal" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_room")
+
+[node name="Backdrop" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0392157, 0.054902, 0.0784314, 0.88)
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(760, 520)
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Center/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 18
+
+[node name="VBox" type="VBoxContainer" parent="Center/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Header" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Center/Panel/Margin/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 20
+text = "ONLINE CO-OP SQUAD LOBBY (NAKAMA)"
+
+[node name="CloseBtn" type="Button" parent="Center/Panel/Margin/VBox/Header"]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+text = "✕"
+
+[node name="MissionLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.960784, 0.619608, 0.0431373, 1)
+text = "Mission: Stage 1"
+
+[node name="ErrorLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.988235, 0.647059, 0.647059, 1)
+autowrap_mode = 2
+
+[node name="BrowseView" type="VBoxContainer" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="TopActions" type="HBoxContainer" parent="Center/Panel/Margin/VBox/BrowseView"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="QuickBtn" type="Button" parent="Center/Panel/Margin/VBox/BrowseView/TopActions"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Quick Match"
+
+[node name="CreatePubBtn" type="Button" parent="Center/Panel/Margin/VBox/BrowseView/TopActions"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Create Public Room"
+
+[node name="CreatePrivBtn" type="Button" parent="Center/Panel/Margin/VBox/BrowseView/TopActions"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Create Private Room"
+
+[node name="CodeRow" type="HBoxContainer" parent="Center/Panel/Margin/VBox/BrowseView"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="CodeInput" type="LineEdit" parent="Center/Panel/Margin/VBox/BrowseView/CodeRow"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Enter 4-character Room Code (e.g. K7M2)"
+max_length = 6
+
+[node name="JoinCodeBtn" type="Button" parent="Center/Panel/Margin/VBox/BrowseView/CodeRow"]
+custom_minimum_size = Vector2(140, 42)
+layout_mode = 2
+text = "Join by Code"
+
+[node name="RefreshRoomsBtn" type="Button" parent="Center/Panel/Margin/VBox/BrowseView/CodeRow"]
+custom_minimum_size = Vector2(110, 42)
+layout_mode = 2
+text = "Refresh"
+
+[node name="RoomsScroll" type="ScrollContainer" parent="Center/Panel/Margin/VBox/BrowseView"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="RoomsList" type="VBoxContainer" parent="Center/Panel/Margin/VBox/BrowseView/RoomsScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="WaitingView" type="VBoxContainer" parent="Center/Panel/Margin/VBox"]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="RoomCodeBanner" type="Label" parent="Center/Panel/Margin/VBox/WaitingView"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.219608, 0.741176, 0.972549, 1)
+theme_override_font_sizes/font_size = 22
+text = "ROOM CODE: ----"
+
+[node name="NoteLabel" type="Label" parent="Center/Panel/Margin/VBox/WaitingView"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.580392, 0.639216, 0.721569, 1)
+text = "Real squadmates can revive downed players at the Revive Station. Scout Maya remains on Overwatch and cannot revive."
+autowrap_mode = 2
+
+[node name="PlayersScroll" type="ScrollContainer" parent="Center/Panel/Margin/VBox/WaitingView"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="PlayersList" type="VBoxContainer" parent="Center/Panel/Margin/VBox/WaitingView/PlayersScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="WaitBtns" type="HBoxContainer" parent="Center/Panel/Margin/VBox/WaitingView"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="LeaveBtn" type="Button" parent="Center/Panel/Margin/VBox/WaitingView/WaitBtns"]
+custom_minimum_size = Vector2(130, 46)
+layout_mode = 2
+text = "Leave Room"
+
+[node name="ReadyBtn" type="Button" parent="Center/Panel/Margin/VBox/WaitingView/WaitBtns"]
+custom_minimum_size = Vector2(160, 46)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Toggle Ready"
+
+[node name="StartBtn" type="Button" parent="Center/Panel/Margin/VBox/WaitingView/WaitBtns"]
+custom_minimum_size = Vector2(200, 46)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "DEPLOY SQUAD"

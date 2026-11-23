@@ -1,0 +1,8 @@
+**
+!nakama/
+!nakama/data/
+!nakama/data/local.yml
+!nakama/data/modules/
+!nakama/data/modules/index.js
+!deploy/
+!deploy/start-nakama.sh

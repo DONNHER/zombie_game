@@ -1,0 +1,130 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/result_modal.gd" id="1_res"]
+
+[node name="ResultModal" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_res")
+
+[node name="Backdrop" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0392157, 0.054902, 0.0784314, 0.88)
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(540, 0)
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Center/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 22
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 22
+
+[node name="VBox" type="VBoxContainer" parent="Center/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="BannerLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.133333, 0.772549, 0.368627, 1)
+theme_override_font_sizes/font_size = 28
+text = "STAGE CLEARED!"
+horizontal_alignment = 1
+
+[node name="StarsLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.980392, 0.74902, 0.141176, 1)
+theme_override_font_sizes/font_size = 34
+text = "★ ★ ★"
+horizontal_alignment = 1
+
+[node name="SubtitleLabel" type="Label" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.580392, 0.639216, 0.721569, 1)
+text = "Mission Summary"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="StatsCard" type="PanelContainer" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="StatsGrid" type="GridContainer" parent="Center/Panel/Margin/VBox/StatsCard"]
+layout_mode = 2
+theme_override_constants/h_separation = 24
+theme_override_constants/v_separation = 8
+columns = 2
+
+[node name="WaveLbl" type="Label" parent="Center/Panel/Margin/VBox/StatsCard/StatsGrid"]
+layout_mode = 2
+text = "Wave Reached: 5"
+
+[node name="TimeLbl" type="Label" parent="Center/Panel/Margin/VBox/StatsCard/StatsGrid"]
+layout_mode = 2
+text = "Elapsed Time: 120s"
+
+[node name="KillsLbl" type="Label" parent="Center/Panel/Margin/VBox/StatsCard/StatsGrid"]
+layout_mode = 2
+text = "Zombies Slain: 0"
+
+[node name="BossLbl" type="Label" parent="Center/Panel/Margin/VBox/StatsCard/StatsGrid"]
+layout_mode = 2
+text = "Bosses Defeated: 0"
+
+[node name="PointsLbl" type="Label" parent="Center/Panel/Margin/VBox/StatsCard/StatsGrid"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.960784, 0.619608, 0.0431373, 1)
+text = "Survival Points: +0"
+
+[node name="TokensLbl" type="Label" parent="Center/Panel/Margin/VBox/StatsCard/StatsGrid"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.219608, 0.741176, 0.972549, 1)
+text = "Boss Tokens: +0"
+
+[node name="SaveNotice" type="Label" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.580392, 0.639216, 0.721569, 1)
+theme_override_font_sizes/font_size = 13
+text = "Progress saved locally to device storage."
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="Btns" type="HBoxContainer" parent="Center/Panel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="RetryBtn" type="Button" parent="Center/Panel/Margin/VBox/Btns"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Retry"
+
+[node name="NextBtn" type="Button" parent="Center/Panel/Margin/VBox/Btns"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Next Level"
+
+[node name="MenuBtn" type="Button" parent="Center/Panel/Margin/VBox/Btns"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Menu"
