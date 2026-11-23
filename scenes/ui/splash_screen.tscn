@@ -1,9 +1,9 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://blcrxnxu0tvdf"]
 
-[ext_resource type="Script" path="res://scripts/ui/splash_screen.gd" id="1_splash"]
+[ext_resource type="Script" uid="uid://c6bxm0qshsqkj" path="res://scripts/ui/splash_screen.gd" id="1_splash"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hero_preview.tscn" id="2_hero"]
 
-[node name="SplashScreen" type="Control"]
+[node name="SplashScreen" type="Control" unique_id=1277823067]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -12,7 +12,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_splash")
 
-[node name="Bg" type="ColorRect" parent="."]
+[node name="Bg" type="ColorRect" parent="." unique_id=2081605041]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -21,7 +21,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.054902, 0.0745098, 0.105882, 1)
 
-[node name="CenterBox" type="CenterContainer" parent="."]
+[node name="CenterBox" type="CenterContainer" parent="." unique_id=849335593]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -29,55 +29,53 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Card" type="PanelContainer" parent="CenterBox"]
+[node name="Card" type="PanelContainer" parent="CenterBox" unique_id=2136464454]
 custom_minimum_size = Vector2(560, 0)
 layout_mode = 2
 
-[node name="VBox" type="VBoxContainer" parent="CenterBox/Card"]
+[node name="VBox" type="VBoxContainer" parent="CenterBox/Card" unique_id=1464952419]
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="HeroPreview" parent="CenterBox/Card/VBox" instance=ExtResource("2_hero")]
+[node name="HeroPreview" parent="CenterBox/Card/VBox" unique_id=2075504147 instance=ExtResource("2_hero")]
 layout_mode = 2
 size_flags_horizontal = 4
 
-[node name="TagLabel" type="Label" parent="CenterBox/Card/VBox"]
+[node name="TagLabel" type="Label" parent="CenterBox/Card/VBox" unique_id=1606440169]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.960784, 0.619608, 0.0431373, 1)
 theme_override_font_sizes/font_size = 12
 text = "GODOT 4 EDITION · OFFLINE & NAKAMA CO-OP"
 horizontal_alignment = 1
 
-[node name="TitleLabel" type="Label" parent="CenterBox/Card/VBox"]
+[node name="TitleLabel" type="Label" parent="CenterBox/Card/VBox" unique_id=1443522224]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.972549, 0.980392, 0.988235, 1)
 theme_override_font_sizes/font_size = 30
-text = "ZOMBIE APOCALYPSE
-RANGER OUTBREAK"
+text = "ZOMBIE OUTBREAK"
 horizontal_alignment = 1
 
-[node name="SubLabel" type="Label" parent="CenterBox/Card/VBox"]
+[node name="SubLabel" type="Label" parent="CenterBox/Card/VBox" unique_id=593155871]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.580392, 0.639216, 0.721569, 1)
 text = "Hold multi-room bunkers, survive phantom invasions, and defeat 5 mutated bosses solo or with a live Nakama squad."
 horizontal_alignment = 1
 autowrap_mode = 2
 
-[node name="BootBar" type="ProgressBar" parent="CenterBox/Card/VBox"]
+[node name="BootBar" type="ProgressBar" parent="CenterBox/Card/VBox" unique_id=1195273768]
 custom_minimum_size = Vector2(0, 14)
 layout_mode = 2
-max_value = 100.0
 value = 100.0
 show_percentage = false
 
-[node name="StatusLabel" type="Label" parent="CenterBox/Card/VBox"]
+[node name="StatusLabel" type="Label" parent="CenterBox/Card/VBox" unique_id=786587159]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.219608, 0.741176, 0.972549, 1)
 theme_override_font_sizes/font_size = 13
-text = "Local bunker save ready · Press Enter or tap to continue"
+text = "· Press Enter or tap button below to continue"
 horizontal_alignment = 1
 
-[node name="EnterButton" type="Button" parent="CenterBox/Card/VBox"]
+[node name="EnterButton" type="Button" parent="CenterBox/Card/VBox" unique_id=265710277]
 custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
 theme_override_font_sizes/font_size = 17
