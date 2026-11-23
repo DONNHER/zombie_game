@@ -35,6 +35,7 @@ services:
       NAKAMA_HTTP_KEY: ${NAKAMA_HTTP_KEY:?initialize server environment first}
     ports:
       - "${NAKAMA_BIND_IP:-0.0.0.0}:${NAKAMA_PORT:-7350}:7350"
+      - "7351:7351"
     healthcheck:
       test: ["CMD", "/nakama/nakama", "healthcheck"]
       interval: 5s
