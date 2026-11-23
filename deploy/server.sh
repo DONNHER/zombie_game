@@ -25,7 +25,7 @@ if [[ $command == init ]]; then
   exit 0
 fi
 
-if [[ ! $release =~ ^([0-9a-f]{40}|[a-z0-9][a-z0-9-]{0,31})$ || ! -f $env_file ]]; then
+if [[ ! $release =~ ^([0-9a-f]{40}|[a-zA-Z0-9][a-zA-Z0-9.-]{0,31})$ || ! -f $env_file ]]; then
   printf 'Run %s init, then use deploy, verify, rollback or down with a release tag.\n' "$0" >&2
   exit 2
 fi
