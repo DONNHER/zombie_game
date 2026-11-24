@@ -14,7 +14,7 @@ signal team_pause_changed(paused: bool, owner_name: String)
 const PLAYER_STATE_OP := 3
 const WORLD_STATE_OP := 6
 const PLAYER_ACTION_OP := 7
-const NET_INTERVAL := 0.10
+const NET_INTERVAL := 0.05
 const TEAM_PAUSE_COOLDOWN_MS := 256000
 const ENEMY_MOVE_SPEED_SCALE := 0.65
 const ENEMY_DAMAGE_SCALE := 0.50
@@ -25,7 +25,7 @@ const CORPSE_REST_SECONDS := 0.95
 const CORPSE_REACH_SECONDS := 1.25
 const CORPSE_GRIP_SECONDS := 0.65
 const CORPSE_DRAG_SECONDS := 2.85
-const MAX_MOVE_CREDIT_SECONDS := 0.25
+const MAX_MOVE_CREDIT_SECONDS := 0.45
 const MAX_PENDING_INPUTS := 40
 const ENTITY_FIELDS := {
 	"enemies": ["id", "x", "y", "radius", "color", "hp", "max_hp", "is_boss", "boss_id", "name", "passes_walls", "corpse_count"],
@@ -131,6 +131,7 @@ var _firing: bool = false
 var _input_sequence: int = 0
 var _acked_input_sequence: int = 0
 var _pending_input_positions: Dictionary = {}
+var _enemy_net_targets: Dictionary = {}
 var _visual_time: float = 0.0
 
 
@@ -226,6 +227,7 @@ func start_match(config: Dictionary) -> void:
 	_input_sequence = 0
 	_acked_input_sequence = 0
 	_pending_input_positions.clear()
+	_enemy_net_targets.clear()
 	_visual_time = 0.0
 	_local_user_id = str(NetworkManager.auth_user.get("user_id", ""))
 	_host_user_id = str(NetworkManager.current_room.get("host_user_id", ""))
@@ -552,6 +554,8 @@ func _process(delta: float) -> void:
 		_update_player_aim_and_fire()
 	if is_host and not shared_paused:
 		_update_shared_world(delta)
+	if is_online and not shared_paused:
+		_step_remote_smoothing(delta)
 
 	# Camera tracking + shake
 	_shake_trauma = maxf(0.0, _shake_trauma - delta * 2.2)
@@ -576,6 +580,76 @@ func _process(delta: float) -> void:
 				_broadcast_local_state()
 
 	queue_redraw()
+
+
+func _init_remote_actor_smoothing(actor: Dictionary, x: float, y: float, angle: float) -> void:
+	actor["render_x"] = x
+	actor["render_y"] = y
+	actor["render_angle"] = angle
+	actor["target_x"] = x
+	actor["target_y"] = y
+	actor["target_angle"] = angle
+	actor["net_vx"] = 0.0
+	actor["net_vy"] = 0.0
+	actor["extrap_time"] = 0.0
+	actor["last_pkt_ms"] = Time.get_ticks_msec()
+
+
+func _update_remote_actor_target(actor: Dictionary, x: float, y: float, angle: float, snap: bool = false) -> void:
+	if not actor.has("render_x"):
+		_init_remote_actor_smoothing(actor, x, y, angle)
+		return
+	var now_ms := Time.get_ticks_msec()
+	var prev_ms := int(actor.get("last_pkt_ms", now_ms))
+	var dt_pkt := clampf(float(now_ms - prev_ms) / 1000.0, 0.016, 0.25)
+	var prev_tx := float(actor.get("target_x", x))
+	var prev_ty := float(actor.get("target_y", y))
+	var raw_vel := Vector2(x - prev_tx, y - prev_ty) / dt_pkt
+	if raw_vel.length() > 280.0:
+		raw_vel = raw_vel.normalized() * 280.0
+	var cur_vel := Vector2(float(actor.get("net_vx", 0.0)), float(actor.get("net_vy", 0.0)))
+	var blended_vel := Vector2.ZERO if snap else cur_vel.lerp(raw_vel, 0.65)
+	actor["net_vx"] = blended_vel.x
+	actor["net_vy"] = blended_vel.y
+	actor["target_x"] = x
+	actor["target_y"] = y
+	actor["target_angle"] = angle
+	actor["extrap_time"] = 0.0
+	actor["last_pkt_ms"] = now_ms
+	var render_pos := Vector2(float(actor["render_x"]), float(actor["render_y"]))
+	if snap or render_pos.distance_to(Vector2(x, y)) > 240.0:
+		actor["render_x"] = x
+		actor["render_y"] = y
+		actor["render_angle"] = angle
+
+
+func _step_remote_smoothing(delta: float) -> void:
+	var pos_blend := clampf(18.0 * delta, 0.0, 1.0)
+	var rot_blend := clampf(22.0 * delta, 0.0, 1.0)
+	for actor in remote_players.values():
+		var base_tx := float(actor.get("target_x", actor["x"]))
+		var base_ty := float(actor.get("target_y", actor["y"]))
+		var extrap_elapsed := float(actor.get("extrap_time", 0.0))
+		var extrap_dt := clampf(extrap_elapsed, 0.0, 0.09)
+		actor["extrap_time"] = extrap_elapsed + delta
+		var tx := base_tx + float(actor.get("net_vx", 0.0)) * extrap_dt
+		var ty := base_ty + float(actor.get("net_vy", 0.0)) * extrap_dt
+		var rx := float(actor.get("render_x", tx))
+		var ry := float(actor.get("render_y", ty))
+		var new_rx := lerpf(rx, tx, pos_blend)
+		var new_ry := lerpf(ry, ty, pos_blend)
+		actor["render_x"] = new_rx
+		actor["render_y"] = new_ry
+		actor["render_angle"] = lerp_angle(float(actor.get("render_angle", actor["angle"])), float(actor.get("target_angle", actor["angle"])), rot_blend)
+		actor["visual_moving"] = Vector2(new_rx - rx, new_ry - ry).length() > 0.25
+
+	if not is_host:
+		for e in enemies:
+			var eid = e.get("id")
+			if _enemy_net_targets.has(eid):
+				var target: Vector2 = _enemy_net_targets[eid]
+				e["x"] = lerpf(float(e["x"]), target.x, pos_blend)
+				e["y"] = lerpf(float(e["y"]), target.y, pos_blend)
 
 
 func _update_combat_timers(actor: Dictionary, delta: float) -> void:
@@ -630,6 +704,7 @@ func _update_shared_world(delta: float) -> void:
 	_update_projectiles(delta, living)
 	_update_pickups(delta, living)
 	_update_fx(delta)
+
 
 func _actor_position(actor: Dictionary) -> Vector2:
 	return Vector2(float(actor["x"]), float(actor["y"]))
@@ -687,6 +762,20 @@ func _nearest_living_player(pos: Vector2, actors: Array[Dictionary]) -> Dictiona
 	return nearest
 
 
+func _nearest_visible_player_pos(pos: Vector2) -> Vector2:
+	var best_pos := _actor_position(player)
+	var best_dist := pos.distance_squared_to(best_pos)
+	for actor in remote_players.values():
+		if bool(actor.get("downed", false)):
+			continue
+		var rp := Vector2(float(actor.get("render_x", actor["x"])), float(actor.get("render_y", actor["y"])))
+		var d := pos.distance_squared_to(rp)
+		if d < best_dist:
+			best_dist = d
+			best_pos = rp
+	return best_pos
+
+
 func _update_player_movement(delta: float) -> void:
 	var mv := Vector2.ZERO
 	if Input.is_action_pressed("move_left"):
@@ -722,7 +811,6 @@ func _update_player_movement(delta: float) -> void:
 
 func _check_hazards(actor: Dictionary, delta: float) -> float:
 	var spd := float(actor["speed"])
-	# Hazard slow/damage check (mud/toxic/lava outside bunker)
 	var hazard_damage := 0.0
 	for obs in _stage_data.get("obstacles", []):
 		if str(obs.get("kind", "")) == "hazard":
@@ -745,7 +833,6 @@ func _check_hazards(actor: Dictionary, delta: float) -> float:
 
 
 func _update_player_aim_and_fire() -> void:
-	# Find aim target
 	var candidates: Array = []
 	for e in enemies:
 		candidates.append({"id": e["id"], "x": e["x"], "y": e["y"], "radius": e["radius"]})
@@ -762,7 +849,6 @@ func _update_player_aim_and_fire() -> void:
 	if _hud_ref and _hud_ref.has_method("is_touch_firing"):
 		touch_fire = bool(_hud_ref.is_touch_firing())
 
-	# Mouse click aims toward cursor if clicking manually
 	if manual_mouse_fire and target.is_empty():
 		var m_world := get_global_mouse_position()
 		player["angle"] = atan2(m_world.y - float(player["y"]), m_world.x - float(player["x"]))
@@ -1255,7 +1341,6 @@ func _update_spawner(delta: float) -> void:
 			var next_code := str(enemies_to_spawn.pop_front())
 			_spawn_enemy_by_code(next_code)
 	elif enemies.is_empty():
-		# Wave cleared!
 		if rolling_phase == "none" and ((mode == "story" and wave >= int(_stage_data.get("waves_count", 5))) or (mode == "endless" and GameRules.should_spawn_endless_portal(wave))):
 			if not corpse_visuals.is_empty():
 				return
@@ -1465,7 +1550,6 @@ func _spawn_enemy_by_code(code: String) -> void:
 	var hw := float(bnd["half_w"])
 	var hh := float(bnd["half_h"])
 
-	# Spawn outside the current bunker on N/S/W/E sides, respecting active sector barrier
 	var barrier_x := _get_active_sector_barrier_x()
 	var max_spawn_x := mw - 80.0
 	if barrier_x > 0.0:
@@ -1475,16 +1559,16 @@ func _spawn_enemy_by_code(code: String) -> void:
 	var sx := bx
 	var sy := by
 	match side:
-		0: # East (or West if barrier is tight)
+		0:
 			sx = clampf(bx + hw + randf_range(90.0, 260.0), 80.0, max_spawn_x)
 			sy = clampf(by + randf_range(-hh - 140.0, hh + 140.0), 90.0, mh - 90.0)
-		1: # West
+		1:
 			sx = clampf(bx - hw - randf_range(110.0, 320.0), 80.0, max_spawn_x)
 			sy = clampf(by + randf_range(-hh - 140.0, hh + 140.0), 90.0, mh - 90.0)
-		2: # North
+		2:
 			sx = clampf(bx + randf_range(-hw - 120.0, hw + 120.0), 80.0, max_spawn_x)
 			sy = clampf(by - hh - randf_range(100.0, 220.0), 90.0, mh - 90.0)
-		_: # South
+		_:
 			sx = clampf(bx + randf_range(-hw - 120.0, hw + 120.0), 80.0, max_spawn_x)
 			sy = clampf(by + hh + randf_range(100.0, 220.0), 90.0, mh - 90.0)
 
@@ -1540,7 +1624,6 @@ func _update_enemies(delta: float, living: Array[Dictionary]) -> void:
 		var dist := dir.length()
 		var n_dir := dir.normalized() if dist > 0.001 else Vector2.ZERO
 
-		# Ground enemies steer toward bunker doorways if separated by bunker wall
 		if not passes_walls:
 			var bunker := _get_current_bunker()
 			var b_rect := GameRules.get_bunker_bounds(bunker)
@@ -1562,7 +1645,6 @@ func _update_enemies(delta: float, living: Array[Dictionary]) -> void:
 		e["x"] = next_pos.x
 		e["y"] = next_pos.y
 
-		# Elite / Boss ranged & special attacks
 		if str(e["type"]) == "elite" or bool(e["is_boss"]):
 			e["spec_cd"] = float(e["spec_cd"]) - delta
 			if float(e["spec_cd"]) <= 0.0 and dist < 560.0:
@@ -1581,12 +1663,10 @@ func _update_enemies(delta: float, living: Array[Dictionary]) -> void:
 						if _actor_position(actor).distance_to(next_pos) <= 180.0:
 							_apply_player_damage(actor, float(e["damage"]) * 0.9)
 
-		# Contact attack vs player
 		if dist <= float(e["radius"]) + float(target["radius"]) + 6.0 and float(e["atk_cd"]) <= 0.0:
 			e["atk_cd"] = 0.85
 			_apply_player_damage(target, float(e["damage"]))
 
-		# Contact attack vs barricades/turrets
 		for bi in range(builds.size() - 1, -1, -1):
 			var b := builds[bi]
 			if Vector2(float(b["x"]) - float(e["x"]), float(b["y"]) - float(e["y"])).length() <= float(e["radius"]) + 20.0:
@@ -1884,6 +1964,8 @@ func _enter_next_endless_portal() -> void:
 		actor["x"] = float(bunker["x"])
 		actor["y"] = float(bunker["y"])
 		actor["warp_id"] = int(actor["warp_id"]) + 1
+		if not is_same(actor, player):
+			_init_remote_actor_smoothing(actor, float(bunker["x"]), float(bunker["y"]), float(actor["angle"]))
 	AudioManager.play_victory()
 	toast_requested.emit("PORTAL WARP -> Realm %d (%s)! Skills surged +35%%!" % [portal_realm, str(_stage_data.get("name", ""))])
 
@@ -2088,6 +2170,7 @@ func _receive_player_state(sender_id: String, payload: Dictionary) -> void:
 		var spawn_pos := Vector2(float(bunker["x"]), float(bunker["y"])) + _guest_spawn_offset(sender_id)
 		var resolved := _resolve_world_collisions(spawn_pos.x, spawn_pos.y, 16.0, false)
 		actor = _create_player(resolved.x, resolved.y, h_class, gender, username, wid, int(payload.get("weapon_level", 0)))
+		_init_remote_actor_smoothing(actor, resolved.x, resolved.y, float(actor["angle"]))
 		remote_players[sender_id] = actor
 	if maya_phase in ["cutscene", "finale"] or shared_paused:
 		actor["input_firing"] = false
@@ -2107,10 +2190,10 @@ func _receive_player_state(sender_id: String, payload: Dictionary) -> void:
 	var map_width := float(_stage_data.get("map_width", 2600.0))
 	var map_height := float(_stage_data.get("map_height", 1200.0))
 	var position := _resolve_guest_movement(actor, Vector2(clampf(x, 0.0, map_width), clampf(y, 0.0, map_height)))
-	actor["visual_moving"] = position.distance_to(_actor_position(actor)) > 0.8
 	actor["x"] = position.x
 	actor["y"] = position.y
 	actor["angle"] = angle
+	_update_remote_actor_target(actor, position.x, position.y, angle, false)
 	var firing := bool(payload.get("firing", false))
 	var just_pressed := firing and not bool(actor["input_firing"])
 	actor["input_firing"] = firing
@@ -2366,7 +2449,26 @@ func _apply_world_snapshot(state: Dictionary) -> void:
 	maya_level = int(state.get("maya_level", 1))
 	maya_hp = float(state.get("maya_hp", maya_hp))
 	maya_max_hp = float(state.get("maya_max_hp", maya_max_hp))
+
+	var prev_enemy_pos := {}
+	for existing_e in enemies:
+		prev_enemy_pos[existing_e.get("id")] = Vector2(float(existing_e["x"]), float(existing_e["y"]))
 	enemies = _decode_entities(state.get("enemies", []), ENTITY_FIELDS["enemies"])
+	var active_enemy_ids := {}
+	for e in enemies:
+		var eid = e.get("id")
+		active_enemy_ids[eid] = true
+		var target_pos := Vector2(float(e["x"]), float(e["y"]))
+		_enemy_net_targets[eid] = target_pos
+		if prev_enemy_pos.has(eid):
+			var prev_pos: Vector2 = prev_enemy_pos[eid]
+			if prev_pos.distance_to(target_pos) <= 220.0:
+				e["x"] = prev_pos.x
+				e["y"] = prev_pos.y
+	for eid in _enemy_net_targets.keys():
+		if not active_enemy_ids.has(eid):
+			_enemy_net_targets.erase(eid)
+
 	projectiles = _decode_entities(state.get("projectiles", []), ENTITY_FIELDS["projectiles"], true)
 	pickups = _decode_entities(state.get("pickups", []), ENTITY_FIELDS["pickups"])
 	builds = _decode_entities(state.get("builds", []), ENTITY_FIELDS["builds"])
@@ -2376,14 +2478,30 @@ func _apply_world_snapshot(state: Dictionary) -> void:
 	floating_texts = _decode_entities(state.get("floating_texts", []), ENTITY_FIELDS["floating_texts"], true)
 	corpse_visuals = _decode_entities(state.get("corpse_visuals", []), ENTITY_FIELDS["corpse_visuals"])
 
-	remote_players.clear()
+	var seen_uids := {}
 	var squad: Dictionary = state.get("players", {})
 	for uid in squad:
 		var actor: Dictionary = squad[uid]
 		if uid == _local_user_id:
 			_apply_local_actor_snapshot(actor)
 		else:
-			remote_players[uid] = actor
+			seen_uids[uid] = true
+			var ax := float(actor.get("x", 0.0))
+			var ay := float(actor.get("y", 0.0))
+			var aang := float(actor.get("angle", 0.0))
+			if remote_players.has(uid):
+				var existing: Dictionary = remote_players[uid]
+				var warped := int(actor.get("warp_id", 0)) != int(existing.get("warp_id", 0))
+				for key in actor:
+					existing[key] = actor[key]
+				_update_remote_actor_target(existing, ax, ay, aang, warped)
+			else:
+				_init_remote_actor_smoothing(actor, ax, ay, aang)
+				remote_players[uid] = actor
+	for uid in remote_players.keys():
+		if not seen_uids.has(uid):
+			remote_players.erase(uid)
+
 	if was_team_paused != shared_paused:
 		team_pause_changed.emit(shared_paused, shared_pause_owner_name)
 	_emit_hud_snapshot()
@@ -2546,14 +2664,20 @@ func _emit_hud_snapshot() -> void:
 
 
 func _draw_online_actor(actor: Dictionary, font: Font, local: bool) -> void:
-	var pos := _actor_position(actor)
-	var outline := Color("#F8FAFC") if local else Color("#BAE6FD")
-	ComicActorDraw.draw_player(self, actor, _visual_time, local)
+	var draw_actor := actor
+	if not local:
+		draw_actor = actor.duplicate()
+		draw_actor["x"] = float(actor.get("render_x", actor["x"]))
+		draw_actor["y"] = float(actor.get("render_y", actor["y"]))
+		draw_actor["angle"] = float(actor.get("render_angle", actor["angle"]))
+	var pos := _actor_position(draw_actor)
+	ComicActorDraw.draw_player(self, draw_actor, _visual_time, local)
 
 	if not local:
+		var outline := Color("#BAE6FD")
 		var label := str(actor["username"])
 		var label_width := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
-		draw_string(font, pos + Vector2(-label_width * 0.5, -24.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, outline)
+		draw_string(font, pos + Vector2(-label_width * 0.5, -26.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, outline)
 		var hp_ratio := clampf(float(actor["hp"]) / maxf(float(actor["max_hp"]), 1.0), 0.0, 1.0)
 		draw_rect(Rect2(pos.x - 16.0, pos.y + 20.0, 32.0, 4.0), Color("#0F172A"))
 		draw_rect(Rect2(pos.x - 16.0, pos.y + 20.0, hp_ratio * 32.0, 4.0), Color("#22C55E"))
@@ -2608,7 +2732,7 @@ func _draw() -> void:
 		draw_rect(r, col)
 		draw_rect(r, Color("#0F172A"), false, 2.0)
 
-	# Bunkers (realistic multi-room wooden planks + furniture + masonry walls + Maya Watchtower + Revive Station)
+	# Bunkers
 	var bunkers: Array = _stage_data.get("bunkers", [])
 	for bi in range(bunkers.size()):
 		var b: Dictionary = bunkers[bi]
@@ -2619,27 +2743,22 @@ func _draw() -> void:
 		var hh := float(bnd["half_h"])
 		var locked := GameRules.is_bunker_locked(mode, bi, current_bunker_idx, _sector_open_after_prep())
 
-		# Exterior asphalt apron
 		draw_rect(Rect2(bx - hw - 42, by - hh - 42, hw * 2 + 84, hh * 2 + 84), Color(0.11, 0.13, 0.16, 0.65))
-		# Hardwood floor + plank lines
 		var floor_r := Rect2(bx - hw, by - hh, hw * 2, hh * 2)
 		draw_rect(floor_r, Color("#3E291C"))
 		for py in range(int(by - hh) + 18, int(by + hh), 20):
 			draw_line(Vector2(bx - hw, py), Vector2(bx + hw, py), Color("#2A1B12"), 1.5)
-		# Interior rug & furniture
 		draw_rect(Rect2(bx - hw * 0.25, by - hh * 0.22, hw * 0.50, hh * 0.44), Color("#4A2525"))
-		draw_rect(Rect2(bx - hw + 24, by - hh + 24, 72, 28), Color("#64748B")) # Sofa
-		draw_rect(Rect2(bx - hw + 24, by + hh - 64, 62, 34), Color("#334155")) # Command desk
-		draw_rect(Rect2(bx + hw - 88, by + hh - 64, 58, 30), Color("#E2E8F0")) # Med cot
-		draw_rect(Rect2(bx + hw - 76, by - hh + 24, 44, 24), Color("#15803D")) # Plant
+		draw_rect(Rect2(bx - hw + 24, by - hh + 24, 72, 28), Color("#64748B"))
+		draw_rect(Rect2(bx - hw + 24, by + hh - 64, 62, 34), Color("#334155"))
+		draw_rect(Rect2(bx + hw - 88, by + hh - 64, 58, 30), Color("#E2E8F0"))
+		draw_rect(Rect2(bx + hw - 76, by - hh + 24, 44, 24), Color("#15803D"))
 
-		# Shop Station Marker
 		var shop_c := GameRules.get_shop_station_coords(b)
 		draw_circle(Vector2(float(shop_c["x"]), float(shop_c["y"])), 24.0, Color(0.13, 0.77, 0.37, 0.25))
 		draw_rect(Rect2(float(shop_c["x"]) - 14, float(shop_c["y"]) - 14, 28, 28), Color("#F59E0B"))
 		draw_string(font, Vector2(float(shop_c["x"]) - 22, float(shop_c["y"]) + 32), "SHOP", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#FDE68A"))
 
-		# Masonry walls with doorways
 		for wr in GameRules.get_bunker_wall_rects(b):
 			draw_rect(wr, Color("#78716C"))
 			draw_rect(wr, Color("#1C1917"), false, 2.0)
@@ -2648,7 +2767,7 @@ func _draw() -> void:
 			draw_rect(floor_r, Color(0.94, 0.27, 0.27, 0.22))
 			draw_string(font, Vector2(bx - 56, by), "SECTOR LOCKED", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color("#FCA5A5"))
 
-	# Sector Lockdown Barrier between active bunker and next locked sector
+	# Sector Lockdown Barrier
 	var active_barrier_x := _get_active_sector_barrier_x()
 	if active_barrier_x > 0.0:
 		var bar_x := active_barrier_x
@@ -2659,7 +2778,7 @@ func _draw() -> void:
 		var bar_label := "SECTOR OPENS IN %ds" % ceili(wave_prep_remaining) if waiting_for_next_wave else "SECTOR BARRIER (CLEAR WAVE)"
 		draw_string(font, Vector2(bar_x - 108.0, float(player["y"]) - 48.0), bar_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, bar_col)
 
-	# Scout Maya Watchtower (active bunker) + Outside Revive Station (online only)
+	# Scout Maya Watchtower + Revive Station
 	var cur_b := _get_current_bunker()
 	var m_pos := GameRules.get_maya_tower_coords(cur_b, mw, mh)
 	draw_rect(Rect2(m_pos.x - 28, m_pos.y - 28, 56, 56), Color("#451A03"))
@@ -2674,7 +2793,8 @@ func _draw() -> void:
 		draw_rect(Rect2(m_pos.x - 28, m_pos.y - 28, 56, 56), Color("#F59E0B"), false, 3.0)
 		var maya_target := GameRules.select_aim_target(m_pos.x, m_pos.y, null, enemies, 620.0)
 		var maya_aim := Vector2(float(maya_target["x"]) - m_pos.x, float(maya_target["y"]) - m_pos.y) if not maya_target.is_empty() else Vector2.RIGHT
-		ComicActorDraw.draw_maya_ranger(self, m_pos, _visual_time, maya_aim)
+		var maya_recoil := clampf(maya_fire_timer * 3.0, 0.0, 1.0)
+		ComicActorDraw.draw_maya_ranger(self, m_pos, _visual_time, maya_aim, maya_recoil)
 		draw_string(font, Vector2(m_pos.x - 42, m_pos.y - 34), "SCOUT MAYA", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#FDE047"))
 
 	if is_online:
@@ -2692,7 +2812,7 @@ func _draw() -> void:
 		draw_arc(pp, 44.0, 0.0, TAU, 32, Color("#C084FC"), 4.0)
 		draw_string(font, Vector2(pp.x - 50, pp.y - 52), "REALM WARP %ds" % ceili(wave_prep_remaining), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#E9D5FF"))
 
-	# Shared stage task marker and a short compass cue near the player.
+	# Stage Task Marker + Player Compass Arrow
 	if _task_guide_active():
 		var task_pos := _task_target()
 		var task_color := Color("#38BDF8") if str(stage_task["type"]) == "antidote" or str(stage_task["type"]) == "deliver_antidote" else Color("#FBBF24")
@@ -2730,7 +2850,10 @@ func _draw() -> void:
 		else:
 			draw_circle(bp, 16.0, Color("#0EA5E9"))
 	for c in clones:
-		ComicActorDraw.draw_clone(self, c, _visual_time, _actor_position(player))
+		var cp := Vector2(float(c["x"]), float(c["y"]))
+		var clone_near := GameRules.select_aim_target(cp.x, cp.y, null, enemies, 480.0)
+		var clone_target := Vector2(float(clone_near["x"]), float(clone_near["y"])) if not clone_near.is_empty() else cp + Vector2.RIGHT.rotated(float(player["angle"])) * 100.0
+		ComicActorDraw.draw_clone(self, c, _visual_time, clone_target)
 
 	# Pickups
 	for pk in pickups:
@@ -2741,7 +2864,7 @@ func _draw() -> void:
 		if coin_effect:
 			draw_arc(drop_pos, 12.0, 0.0, TAU, 16, Color("#FEF08A"), 2.0)
 
-	# Enemies
+	# Corpses
 	for visual in corpse_visuals:
 		var from_pos := Vector2(float(visual["sx"]), float(visual["sy"]))
 		var to_pos := Vector2(float(visual["ex"]), float(visual["ey"]))
@@ -2766,20 +2889,24 @@ func _draw() -> void:
 				var tip := to_pos.lerp(position, reach_t)
 				_draw_collection_tentacle(to_pos, tip, bool(visual["boss"]), from_pos.x * 0.01 + from_pos.y * 0.01, age >= reach_end)
 		ComicActorDraw.draw_corpse(self, visual, position, dragging)
+
+	# Enemies
 	for e in enemies:
 		var ep := Vector2(float(e["x"]), float(e["y"]))
 		var er := float(e["radius"])
+		var face_target := _nearest_visible_player_pos(ep)
 		if bool(e.get("passes_walls", false)):
 			draw_circle(ep, er + 5.0, Color(0.6, 0.7, 1.0, 0.18))
 		if str(e.get("boss_id", "")) == "human_tumbleweed":
 			ComicActorDraw.draw_human_tumbleweed(self, ep, _visual_time, er, int(e.get("corpse_count", corpse_count)), _gather_with_maya)
 		else:
-			ComicActorDraw.draw_enemy(self, e, _visual_time, _actor_position(player))
+			ComicActorDraw.draw_enemy(self, e, _visual_time, face_target)
 		if aim_target_id == e["id"]:
 			draw_arc(ep, er + 8.0, 0.0, TAU, 24, Color("#EF4444"), 2.5)
 		var hp_pct := clampf(float(e["hp"]) / maxf(1.0, float(e["max_hp"])), 0.0, 1.0)
 		draw_rect(Rect2(ep.x - er, ep.y - er - 9.0, er * 2.0 * hp_pct, 4.0), Color("#EF4444"))
 
+	# Players
 	if is_online:
 		for actor in remote_players.values():
 			_draw_online_actor(actor, font, false)

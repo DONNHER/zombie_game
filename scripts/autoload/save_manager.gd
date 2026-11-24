@@ -17,7 +17,7 @@ var settings: Dictionary = {
 	"language": "en",
 	"color_blind_mode": "normal",
 	"text_size": "normal",
-	"server_url": "http://127.0.0.1:7350",
+	"server_url": "https://bedrooms-value-expand-arch.trycloudflare.com",
 	"home_intro_seen": false,
 }
 

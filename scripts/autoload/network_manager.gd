@@ -14,6 +14,7 @@ signal server_error(message: String)
 signal realtime_disconnected(reason: String)
 
 const DEFAULT_SERVER_KEY := "defaultkey"
+const DEFAULT_SERVER_URL := "https://bedrooms-value-expand-arch.trycloudflare.com"
 const COLLECTION_SAVES := "player_saves"
 const KEY_PROFILE := "profile_v1"
 const CLIENT_VERSION := "1.0.0"
@@ -48,7 +49,7 @@ func check_patch_status() -> Dictionary:
 	return {"ok": true, "has_patch": false, "server_version": cur_ver, "client_version": cur_ver}
 
 var server_key: String = DEFAULT_SERVER_KEY
-var server_url: String = "http://127.0.0.1:7350"
+var server_url: String = DEFAULT_SERVER_URL
 var session_token: String = ""
 var auth_user: Dictionary = {} # {user_id, username, is_guest}
 var is_online: bool = false
@@ -73,10 +74,13 @@ func _ready() -> void:
 	var env_key := OS.get_environment("NAKAMA_SERVER_KEY").strip_edges()
 	server_key = env_key if env_key != "" else DEFAULT_SERVER_KEY
 	var env_url := OS.get_environment("NAKAMA_SERVER_URL").strip_edges().rstrip("/")
-	var saved_url := str(SaveManager.settings.get("server_url", "http://127.0.0.1:7350")).rstrip("/")
+	var saved_url := str(SaveManager.settings.get("server_url", DEFAULT_SERVER_URL)).rstrip("/")
+	if saved_url == "" or saved_url.contains("127.0.0.1") or saved_url.contains("localhost"):
+		saved_url = DEFAULT_SERVER_URL
+		SaveManager.write_settings({"server_url": saved_url})
 	server_url = env_url if env_url != "" else saved_url
 	SaveManager.settings_changed.connect(func(s: Dictionary) -> void:
-		server_url = str(s.get("server_url", "http://127.0.0.1:7350")).rstrip("/")
+		server_url = str(s.get("server_url", DEFAULT_SERVER_URL)).rstrip("/")
 	)
 
 
@@ -109,7 +113,7 @@ func _process(_delta: float) -> void:
 func set_server_url(url: String) -> void:
 	var cleaned := url.strip_edges().rstrip("/")
 	if cleaned == "":
-		cleaned = "http://127.0.0.1:7350"
+		cleaned = DEFAULT_SERVER_URL
 	server_url = cleaned
 	SaveManager.write_settings({"server_url": cleaned})
 
