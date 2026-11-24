@@ -53,3 +53,16 @@ docker compose up -d
 1. Open **Godot Engine 4.7** -> Click **Import** -> Select `project.godot`.
 2. Press **Play (`F5`)** to run the game.
 3. For Android APK export: open **Project -> Export -> Android**, configure your debug/release keystore in Editor Settings, and export the `.apk`.
+
+
+During development (updates Nakama backend only):
+
+Bash
+git add .
+git commit -m "Work on new zombie wave logic"
+git push origin main
+When a feature is finished (publishes zombie_game_patch.pck to GitHub Releases):
+
+Bash
+git tag -a v1.0.1 -m "Release v1.0.1"
+git push origin v1.0.1
