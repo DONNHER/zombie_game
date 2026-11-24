@@ -1,6 +1,22 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/settings_modal.gd" id="1_settings"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_card"]
+content_margin_left = 22.0
+content_margin_top = 20.0
+content_margin_right = 22.0
+content_margin_bottom = 20.0
+bg_color = Color(0.08, 0.11, 0.16, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.16, 0.22, 0.29, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
 
 [node name="SettingsModal" type="Control"]
 layout_mode = 3
@@ -16,155 +32,204 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-color = Color(0.0392157, 0.054902, 0.0784314, 0.86)
+color = Color(0.045, 0.065, 0.095, 1)
 
-[node name="Center" type="CenterContainer" parent="."]
+[node name="Page" type="MarginContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 24
 
-[node name="Panel" type="PanelContainer" parent="Center"]
-custom_minimum_size = Vector2(560, 0)
+[node name="Content" type="VBoxContainer" parent="Page"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="Header" type="HBoxContainer" parent="Page/Content"]
 layout_mode = 2
 
-[node name="Margin" type="MarginContainer" parent="Center/Panel"]
-layout_mode = 2
-theme_override_constants/margin_left = 22
-theme_override_constants/margin_top = 18
-theme_override_constants/margin_right = 22
-theme_override_constants/margin_bottom = 18
-
-[node name="Scroll" type="ScrollContainer" parent="Center/Panel/Margin"]
-custom_minimum_size = Vector2(516, 480)
-layout_mode = 2
-
-[node name="VBox" type="VBoxContainer" parent="Center/Panel/Margin/Scroll"]
+[node name="Title" type="Label" parent="Page/Content/Header"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 12
+theme_override_colors/font_color = Color(0.99, 0.73, 0.29, 1)
+theme_override_font_sizes/font_size = 30
+text = "Settings"
 
-[node name="Header" type="HBoxContainer" parent="Center/Panel/Margin/Scroll/VBox"]
+[node name="CloseBtn" type="Button" parent="Page/Content/Header"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(108, 50)
 layout_mode = 2
+text = "Back"
 
-[node name="Title" type="Label" parent="Center/Panel/Margin/Scroll/VBox/Header"]
+[node name="Columns" type="HBoxContainer" parent="Page/Content"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 18
+
+[node name="Audio" type="PanelContainer" parent="Page/Content/Columns"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 20
-text = "SETTINGS & ACCESSIBILITY"
+theme_override_styles/panel = SubResource("StyleBoxFlat_card")
 
-[node name="CloseBtn" type="Button" parent="Center/Panel/Margin/Scroll/VBox/Header"]
-custom_minimum_size = Vector2(40, 40)
-layout_mode = 2
-text = "✕"
-
-[node name="MuteCheck" type="CheckButton" parent="Center/Panel/Margin/Scroll/VBox"]
-custom_minimum_size = Vector2(0, 42)
-layout_mode = 2
-text = "Mute All Sound Effects"
-
-[node name="VolRow" type="HBoxContainer" parent="Center/Panel/Margin/Scroll/VBox"]
+[node name="Options" type="VBoxContainer" parent="Page/Content/Columns/Audio"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="VolLabel" type="Label" parent="Center/Panel/Margin/Scroll/VBox/VolRow"]
-custom_minimum_size = Vector2(150, 0)
+[node name="Heading" type="Label" parent="Page/Content/Columns/Audio/Options"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 21
+text = "Audio & Feedback"
+
+[node name="Divider" type="HSeparator" parent="Page/Content/Columns/Audio/Options"]
+layout_mode = 2
+
+[node name="MuteCheck" type="CheckButton" parent="Page/Content/Columns/Audio/Options"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+text = "Mute Sound"
+
+[node name="VolRow" type="HBoxContainer" parent="Page/Content/Columns/Audio/Options"]
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="VolLabel" type="Label" parent="Page/Content/Columns/Audio/Options/VolRow"]
 layout_mode = 2
 text = "Master Volume"
 
-[node name="VolSlider" type="HSlider" parent="Center/Panel/Margin/Scroll/VBox/VolRow"]
-custom_minimum_size = Vector2(0, 32)
+[node name="VolSlider" type="HSlider" parent="Page/Content/Columns/Audio/Options/VolRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 max_value = 100.0
 step = 5.0
 value = 55.0
 
-[node name="VolVal" type="Label" parent="Center/Panel/Margin/Scroll/VBox/VolRow"]
-custom_minimum_size = Vector2(52, 0)
+[node name="VolVal" type="Label" parent="Page/Content/Columns/Audio/Options/VolRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(55, 0)
 layout_mode = 2
 text = "55%"
 horizontal_alignment = 2
 
-[node name="VibrationCheck" type="CheckButton" parent="Center/Panel/Margin/Scroll/VBox"]
-custom_minimum_size = Vector2(0, 42)
+[node name="VibrationCheck" type="CheckButton" parent="Page/Content/Columns/Audio/Options"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
-text = "Device Vibration / Haptics"
+text = "Device Vibration"
 
-[node name="ShakeCheck" type="CheckButton" parent="Center/Panel/Margin/Scroll/VBox"]
-custom_minimum_size = Vector2(0, 42)
+[node name="Display" type="PanelContainer" parent="Page/Content/Columns"]
 layout_mode = 2
-text = "Camera Screen Shake"
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_card")
 
-[node name="DayNightCheck" type="CheckButton" parent="Center/Panel/Margin/Scroll/VBox"]
-custom_minimum_size = Vector2(0, 42)
-layout_mode = 2
-text = "Dynamic Day/Night Lighting"
-
-[node name="DmgCheck" type="CheckButton" parent="Center/Panel/Margin/Scroll/VBox"]
-custom_minimum_size = Vector2(0, 42)
-layout_mode = 2
-text = "Floating Damage Numbers"
-
-[node name="LangRow" type="HBoxContainer" parent="Center/Panel/Margin/Scroll/VBox"]
+[node name="Options" type="VBoxContainer" parent="Page/Content/Columns/Display"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="LangLabel" type="Label" parent="Center/Panel/Margin/Scroll/VBox/LangRow"]
-custom_minimum_size = Vector2(180, 0)
+[node name="Heading" type="Label" parent="Page/Content/Columns/Display/Options"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 21
+text = "Display & Accessibility"
+
+[node name="Divider" type="HSeparator" parent="Page/Content/Columns/Display/Options"]
+layout_mode = 2
+
+[node name="ShakeCheck" type="CheckButton" parent="Page/Content/Columns/Display/Options"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+text = "Screen Shake"
+
+[node name="DayNightCheck" type="CheckButton" parent="Page/Content/Columns/Display/Options"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+text = "Dynamic Day / Night Lighting"
+
+[node name="DmgCheck" type="CheckButton" parent="Page/Content/Columns/Display/Options"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+text = "Damage Numbers"
+
+[node name="LangRow" type="HBoxContainer" parent="Page/Content/Columns/Display/Options"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="Page/Content/Columns/Display/Options/LangRow"]
+custom_minimum_size = Vector2(135, 0)
 layout_mode = 2
 text = "Language"
 
-[node name="LangOption" type="OptionButton" parent="Center/Panel/Margin/Scroll/VBox/LangRow"]
-custom_minimum_size = Vector2(0, 42)
+[node name="LangOption" type="OptionButton" parent="Page/Content/Columns/Display/Options/LangRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="CbRow" type="HBoxContainer" parent="Center/Panel/Margin/Scroll/VBox"]
+[node name="CbRow" type="HBoxContainer" parent="Page/Content/Columns/Display/Options"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="CbLabel" type="Label" parent="Center/Panel/Margin/Scroll/VBox/CbRow"]
-custom_minimum_size = Vector2(180, 0)
+[node name="Label" type="Label" parent="Page/Content/Columns/Display/Options/CbRow"]
+custom_minimum_size = Vector2(135, 0)
 layout_mode = 2
-text = "Color-Blind Palette"
+text = "Color Palette"
 
-[node name="CbOption" type="OptionButton" parent="Center/Panel/Margin/Scroll/VBox/CbRow"]
-custom_minimum_size = Vector2(0, 42)
+[node name="CbOption" type="OptionButton" parent="Page/Content/Columns/Display/Options/CbRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="TextRow" type="HBoxContainer" parent="Center/Panel/Margin/Scroll/VBox"]
+[node name="TextRow" type="HBoxContainer" parent="Page/Content/Columns/Display/Options"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="TextLabel" type="Label" parent="Center/Panel/Margin/Scroll/VBox/TextRow"]
-custom_minimum_size = Vector2(180, 0)
+[node name="Label" type="Label" parent="Page/Content/Columns/Display/Options/TextRow"]
+custom_minimum_size = Vector2(135, 0)
 layout_mode = 2
 text = "Text Size"
 
-[node name="TextOption" type="OptionButton" parent="Center/Panel/Margin/Scroll/VBox/TextRow"]
-custom_minimum_size = Vector2(0, 42)
+[node name="TextOption" type="OptionButton" parent="Page/Content/Columns/Display/Options/TextRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="ResetRow" type="HBoxContainer" parent="Center/Panel/Margin/Scroll/VBox"]
+[node name="Footer" type="HBoxContainer" parent="Page/Content"]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="ResetBtn" type="Button" parent="Center/Panel/Margin/Scroll/VBox/ResetRow"]
-custom_minimum_size = Vector2(0, 44)
+[node name="ResetBtn" type="Button" parent="Page/Content/Footer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
-size_flags_horizontal = 3
 text = "Reset Local Progress"
 
-[node name="ConfirmResetBtn" type="Button" parent="Center/Panel/Margin/Scroll/VBox/ResetRow"]
+[node name="ConfirmResetBtn" type="Button" parent="Page/Content/Footer"]
+unique_name_in_owner = true
 visible = false
-custom_minimum_size = Vector2(0, 44)
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+text = "Confirm Reset"
+
+[node name="Spacer" type="Control" parent="Page/Content/Footer"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Confirm Wipe Save"
+mouse_filter = 2
+
+[node name="QuitBtn" type="Button" parent="Page/Content/Footer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(140, 48)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.58, 0.58, 1)
+text = "Quit Game"

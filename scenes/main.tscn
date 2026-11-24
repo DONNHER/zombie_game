@@ -64,3 +64,12 @@ visible = false
 visible = false
 
 [node name="SplashScreen" parent="UILayer" instance=ExtResource("3_splash")]
+
+[node name="QuitDialog" type="ConfirmationDialog" parent="."]
+title = "Quit Game?"
+size = Vector2i(460, 150)
+visible = false
+exclusive = true
+dialog_text = "Exit Zombie Apocalypse: Ranger Outbreak?"
+ok_button_text = "Quit Game"
+cancel_button_text = "Keep Playing"

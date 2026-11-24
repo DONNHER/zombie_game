@@ -272,23 +272,66 @@ function rpcDeploymentStatus(ctx) {
   return JSON.stringify({ status: "ok", version: (ctx.env && ctx.env.APP_VERSION) || "dev" });
 }
 
-function rpcCheckUpdate(ctx, logger, nk, payload) {
-  var clientVersion = "1.0.0";
-  try {
-    if (payload) {
-      var data = typeof payload === "string" ? JSON.parse(payload) : payload;
-      if (typeof data === "string") data = JSON.parse(data);
-      if (data && data.client_version) clientVersion = String(data.client_version);
-    }
-  } catch (e) {
-    logger.warn("rpcCheckUpdate parse warning: " + e);
+var updateReleaseCache = null;
+var updateReleaseExpires = 0;
+
+function parseUpdateVersion(value) {
+  var parts = /^(?:v)?(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$/.exec(String(value).trim());
+  return parts ? [Number(parts[1]), Number(parts[2]), Number(parts[3])] : null;
+}
+
+function isUpdateNewer(latest, installed) {
+  for (var i = 0; i < 3; i++) {
+    if (latest[i] !== installed[i]) return latest[i] > installed[i];
   }
-  var serverVersion = (ctx.env && ctx.env.APP_VERSION) || "1.0.0";
-  var hasPatch = (serverVersion !== "dev" && serverVersion !== "" && serverVersion !== clientVersion);
+  return false;
+}
+
+function rpcCheckUpdate(ctx, logger, nk, payload) {
+  var clientVersion;
+  try {
+    var data = JSON.parse(payload || "{}");
+    if (typeof data === "string") data = JSON.parse(data);
+    clientVersion = parseUpdateVersion(data && data.client_version);
+  } catch (e) {
+    clientVersion = null;
+  }
+  if (!clientVersion) {
+    return JSON.stringify({ ok: false, server_version: "", has_patch: false, error: "Invalid client version" });
+  }
+  if (Date.now() >= updateReleaseExpires) {
+    updateReleaseCache = null;
+    try {
+      var res = nk.httpRequest("https://api.github.com/repos/DONNHER/zombie_game/releases/latest", "get", {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "RangerOutbreak-Nakama"
+      }, "", 15000);
+      if (res.code !== 200) throw new Error("GitHub returned HTTP " + res.code);
+      var release = JSON.parse(res.body);
+      var version = parseUpdateVersion(release.tag_name);
+      if (version && !release.draft && !release.prerelease) {
+        var asset = (release.assets || []).some(function (item) {
+          return item.name === "zombie_game_patch.pck" && /^sha256:[0-9a-f]{64}$/.test(item.digest || "");
+        });
+        updateReleaseCache = { version: version, asset: asset };
+      }
+      updateReleaseExpires = Date.now() + 60000;
+    } catch (error) {
+      updateReleaseExpires = Date.now() + 5000;
+      logger.warn("[OTA CHECK] GitHub release lookup failed: " + error);
+    }
+  }
+  var latest = updateReleaseCache;
+  var latestVersion = latest ? "v" + latest.version.join(".") : "";
+  var hasPatch = Boolean(latest && latest.asset && isUpdateNewer(latest.version, clientVersion));
+  var status = latest ? (hasPatch ? "OUTDATED_CLIENT" : "UP_TO_DATE") : "RELEASE_UNAVAILABLE";
+  logger.info("[OTA CHECK] status=" + status + " client_version=v" + clientVersion.join(".") +
+    " latest_version=" + latestVersion + " has_patch=" + hasPatch);
   return JSON.stringify({
-    ok: true,
-    server_version: serverVersion,
-    client_version: clientVersion,
+    ok: Boolean(latest),
+    server_version: latestVersion,
+    latest_version: latestVersion,
+    client_version: "v" + clientVersion.join("."),
     has_patch: hasPatch,
     release_url: "https://github.com/DONNHER/zombie_game/releases/latest"
   });

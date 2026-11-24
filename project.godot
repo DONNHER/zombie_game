@@ -18,6 +18,7 @@ config/icon="res://assets/icon.svg"
 
 [autoload]
 
+OtaPatch="*res://scripts/autoload/ota_patch.gd"
 GameData="*res://scripts/autoload/game_data.gd"
 GameRules="*res://scripts/autoload/game_rules.gd"
 SaveManager="*res://scripts/autoload/save_manager.gd"

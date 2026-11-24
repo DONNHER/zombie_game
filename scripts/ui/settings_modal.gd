@@ -1,21 +1,22 @@
 extends Control
 
 signal closed
+signal quit_requested
 
-@onready var title_label: Label = $Center/Panel/Margin/Scroll/VBox/Header/Title
-@onready var close_btn: Button = $Center/Panel/Margin/Scroll/VBox/Header/CloseBtn
-@onready var mute_check: CheckButton = $Center/Panel/Margin/Scroll/VBox/MuteCheck
-@onready var vol_slider: HSlider = $Center/Panel/Margin/Scroll/VBox/VolRow/VolSlider
-@onready var vol_val: Label = $Center/Panel/Margin/Scroll/VBox/VolRow/VolVal
-@onready var vibration_check: CheckButton = $Center/Panel/Margin/Scroll/VBox/VibrationCheck
-@onready var shake_check: CheckButton = $Center/Panel/Margin/Scroll/VBox/ShakeCheck
-@onready var day_night_check: CheckButton = $Center/Panel/Margin/Scroll/VBox/DayNightCheck
-@onready var dmg_check: CheckButton = $Center/Panel/Margin/Scroll/VBox/DmgCheck
-@onready var lang_option: OptionButton = $Center/Panel/Margin/Scroll/VBox/LangRow/LangOption
-@onready var cb_option: OptionButton = $Center/Panel/Margin/Scroll/VBox/CbRow/CbOption
-@onready var text_option: OptionButton = $Center/Panel/Margin/Scroll/VBox/TextRow/TextOption
-@onready var reset_btn: Button = $Center/Panel/Margin/Scroll/VBox/ResetRow/ResetBtn
-@onready var confirm_reset_btn: Button = $Center/Panel/Margin/Scroll/VBox/ResetRow/ConfirmResetBtn
+@onready var close_btn: Button = %CloseBtn
+@onready var mute_check: CheckButton = %MuteCheck
+@onready var vol_slider: HSlider = %VolSlider
+@onready var vol_val: Label = %VolVal
+@onready var vibration_check: CheckButton = %VibrationCheck
+@onready var shake_check: CheckButton = %ShakeCheck
+@onready var day_night_check: CheckButton = %DayNightCheck
+@onready var dmg_check: CheckButton = %DmgCheck
+@onready var lang_option: OptionButton = %LangOption
+@onready var cb_option: OptionButton = %CbOption
+@onready var text_option: OptionButton = %TextOption
+@onready var reset_btn: Button = %ResetBtn
+@onready var confirm_reset_btn: Button = %ConfirmResetBtn
+@onready var quit_btn: Button = %QuitBtn
 
 var _lang_keys: Array[String] = ["en", "es", "fil"]
 var _cb_keys: Array[String] = ["normal", "deuteranopia", "protanopia", "tritanopia"]
@@ -39,11 +40,8 @@ func _ready() -> void:
 	text_option.add_item("Large (+20%)")
 	text_option.add_item("Extra Large (+40%)")
 
-	close_btn.pressed.connect(func() -> void:
-		confirm_reset_btn.hide()
-		hide()
-		closed.emit()
-	)
+	close_btn.pressed.connect(close_modal)
+	quit_btn.pressed.connect(func() -> void: quit_requested.emit())
 	mute_check.toggled.connect(func(v: bool) -> void: SaveManager.write_settings({"muted": v}))
 	vol_slider.value_changed.connect(func(v: float) -> void:
 		vol_val.text = "%d%%" % int(round(v))
@@ -84,10 +82,15 @@ func open_modal() -> void:
 	show()
 
 
+func close_modal() -> void:
+	confirm_reset_btn.hide()
+	hide()
+	closed.emit()
+
+
 func _sync_ui() -> void:
 	var s := SaveManager.settings
 	var lang := str(s.get("language", "en"))
-	title_label.text = GameData.t(lang, "settings") + " · Accessibility"
 	mute_check.set_pressed_no_signal(bool(s.get("muted", false)))
 	var vol_pct := int(round(float(s.get("volume", 0.55)) * 100.0))
 	vol_slider.set_value_no_signal(float(vol_pct))

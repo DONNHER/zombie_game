@@ -521,13 +521,23 @@ func _finish_stage_task() -> void:
 	AudioManager.play_pickup()
 
 
+func _task_blocks_next_wave() -> bool:
+	return mode == "story" and waiting_for_next_wave and wave + 1 >= int(_stage_data.get("waves_count", 5)) and not bool(stage_task.get("complete", false))
+
+
+func _can_skip_wave_preparation() -> bool:
+	return is_host and waiting_for_next_wave and wave_prep_remaining > 0.0 and not match_ended and not is_paused and not shared_paused and not _task_blocks_next_wave()
+
+
+func skip_wave_preparation() -> void:
+	if not _can_skip_wave_preparation():
+		return
+	wave_prep_remaining = 0.0
+	launch_next_wave()
+
+
 func launch_next_wave() -> void:
-	if not waiting_for_next_wave or match_ended or wave_prep_remaining > 0.0:
-		return
-	if not is_host:
-		_send_player_action("next_wave")
-		return
-	if mode == "story" and wave + 1 >= int(_stage_data.get("waves_count", 5)) and not bool(stage_task.get("complete", false)):
+	if not is_host or not waiting_for_next_wave or match_ended or wave_prep_remaining > 0.0 or _task_blocks_next_wave():
 		return
 	if mode == "endless" and portal_active:
 		_enter_next_endless_portal()
@@ -2272,8 +2282,6 @@ func _receive_player_action(sender_id: String, payload: Dictionary) -> void:
 			return
 	var message := ""
 	match action:
-		"next_wave":
-			launch_next_wave()
 		"reload":
 			_start_reload(actor)
 		"skill":
@@ -2645,11 +2653,12 @@ func _emit_hud_snapshot() -> void:
 		"boss_name": boss_n,
 		"waiting_for_next_wave": waiting_for_next_wave,
 		"wave_prep_remaining": wave_prep_remaining,
+		"can_skip_wave_preparation": _can_skip_wave_preparation(),
 		"skill_buy_wave": wave + 1 if waiting_for_next_wave else wave,
 		"task_text": _task_label(),
 		"antidote_status": _antidote_status(),
 		"task_complete": bool(stage_task.get("complete", true)),
-		"task_blocks_next_wave": mode == "story" and waiting_for_next_wave and wave + 1 >= int(_stage_data.get("waves_count", 5)) and not bool(stage_task.get("complete", false)),
+		"task_blocks_next_wave": _task_blocks_next_wave(),
 		"task_distance": int(round(_actor_position(player).distance_to(_task_target()))) if not stage_task.is_empty() and not bool(stage_task.get("complete", false)) else 0,
 		"skill_cooldowns": skill_cooldowns.duplicate(),
 		"skill_charges": skill_charges.duplicate(),

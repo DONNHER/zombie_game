@@ -14,6 +14,7 @@ extends Node
 @onready var online_room_modal: Control = $UILayer/OnlineRoomModal
 @onready var settings_modal: Control = $UILayer/SettingsModal
 @onready var auth_modal: Control = $UILayer/AuthModal
+@onready var quit_dialog: ConfirmationDialog = $QuitDialog
 
 var _pending_match_cfg: Dictionary = {}
 var _in_match: bool = false
@@ -27,6 +28,10 @@ var _hud_overlay_paused: bool = false
 
 func _ready() -> void:
 	arena.bind_hud(hud)
+	get_tree().auto_accept_quit = false
+	get_tree().quit_on_go_back = false
+	settings_modal.quit_requested.connect(_request_quit)
+	quit_dialog.confirmed.connect(_quit_game)
 
 	splash.entered.connect(func() -> void:
 		splash.hide()
@@ -108,7 +113,7 @@ func _ready() -> void:
 	hud.shop_pressed.connect(_toggle_shop)
 	hud.pause_pressed.connect(_toggle_pause)
 	hud.restart_pressed.connect(_restart_match)
-	hud.next_wave_pressed.connect(func() -> void: arena.launch_next_wave())
+	hud.next_wave_pressed.connect(arena.skip_wave_preparation)
 	hud.settings_pressed.connect(func() -> void:
 		_pause_for_hud_overlay()
 		settings_modal.open_modal()
@@ -390,6 +395,17 @@ func _on_match_finished(summary: Dictionary) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if quit_dialog.visible:
+		return
+	if event.is_action_pressed("pause_game"):
+		if settings_modal.visible:
+			settings_modal.close_modal()
+			get_viewport().set_input_as_handled()
+			return
+		if not _in_match and (lobby.visible or splash.visible):
+			_request_quit()
+			get_viewport().set_input_as_handled()
+			return
 	if not _in_match or arena.match_ended:
 		return
 	if settings_modal.visible or hud._help_overlay.visible:
@@ -418,6 +434,28 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
-		if _in_match:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_request_quit()
+	elif what == NOTIFICATION_WM_GO_BACK_REQUEST and is_node_ready():
+		if quit_dialog.visible:
+			quit_dialog.hide()
+		elif settings_modal.visible:
+			settings_modal.close_modal()
+		elif _in_match and not arena.match_ended:
 			_toggle_pause()
+		else:
+			_request_quit()
+
+
+func _request_quit() -> void:
+	if not is_node_ready() or quit_dialog.visible:
+		return
+	quit_dialog.dialog_text = "Quit the game and leave the current match?" if _in_match and not arena.match_ended else "Exit Zombie Apocalypse: Ranger Outbreak?"
+	quit_dialog.popup_centered()
+	quit_dialog.get_cancel_button().grab_focus()
+
+
+func _quit_game() -> void:
+	if not NetworkManager.current_room.is_empty():
+		NetworkManager.leave_room()
+	get_tree().quit()

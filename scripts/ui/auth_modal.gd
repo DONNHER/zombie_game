@@ -22,7 +22,7 @@ var _busy: bool = false
 
 
 func _ready() -> void:
-	server_input.text = str(SaveManager.settings.get("server_url", "https://bedrooms-value-expand-arch.trycloudflare.com"))
+	server_input.text = NetworkManager.server_url
 	user_input.text = str(SaveManager.save_data.get("username", "Ranger"))
 
 	var err_sb := StyleBoxFlat.new()
@@ -47,7 +47,7 @@ func _ready() -> void:
 
 
 func open_modal(initial_error: String = "") -> void:
-	server_input.text = str(SaveManager.settings.get("server_url", "https://bedrooms-value-expand-arch.trycloudflare.com"))
+	server_input.text = NetworkManager.server_url
 	if initial_error != "":
 		_show_error(initial_error)
 	else:

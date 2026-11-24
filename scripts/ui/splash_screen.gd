@@ -3,265 +3,192 @@ extends Control
 signal entered
 
 enum State {
-	BOOTING,
-	PATCH_CHECKING,
+	CHECKING,
 	PATCH_AVAILABLE,
-	UPDATING,
-	READY
+	DOWNLOADING,
+	RESTART_REQUIRED,
+	READY,
 }
 
-const GITHUB_LATEST_RELEASE_API := "https://api.github.com/repos/DONNHER/zombie_game/releases/latest"
-const PATCH_SAVE_PATH := "user://patch.pck"
-const PATCH_TEMP_PATH := "user://patch_tmp.pck"
+const RELEASE_API := "https://api.github.com/repos/DONNHER/zombie_game/releases/latest"
+const DOWNLOAD_ROOT := "https://github.com/DONNHER/zombie_game/releases/download/"
+const PATCH_NAME := "zombie_game_patch.pck"
 
 @onready var hero_preview: Control = $CenterBox/Card/VBox/HeroPreview
 @onready var boot_bar: ProgressBar = $CenterBox/Card/VBox/BootBar
 @onready var enter_btn: Button = $CenterBox/Card/VBox/EnterButton
+@onready var later_btn: Button = $CenterBox/Card/VBox/LaterButton
 @onready var status_label: Label = $CenterBox/Card/VBox/StatusLabel
 @onready var card: PanelContainer = $CenterBox/Card
 
-var _state: State = State.BOOTING
-var _progress: float = 0.0
-var _patch_version: String = ""
-var _patch_download_url: String = ""
-var _active_download_req: HTTPRequest = null
-var _btn_normal_style: StyleBoxFlat
-var _btn_patch_style: StyleBoxFlat
+var _state := State.CHECKING
+var _patch: Dictionary = {}
+var _download: HTTPRequest
+var _enter_style: StyleBoxFlat
+var _update_style: StyleBoxFlat
 
 
 func _ready() -> void:
-	# 1. Mount any previously downloaded PCK patch immediately on app launch
-	if FileAccess.file_exists(PATCH_SAVE_PATH):
-		var mounted := ProjectSettings.load_resource_pack(PATCH_SAVE_PATH, true)
-		print("Startup PCK mount (", PATCH_SAVE_PATH, "): ", mounted)
-
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color("#131A24")
-	sb.border_color = Color("#F59E0B")
-	sb.set_border_width_all(2)
-	sb.set_corner_radius_all(14)
-	sb.set_content_margin_all(28)
-	card.add_theme_stylebox_override("panel", sb)
-
-	_btn_normal_style = StyleBoxFlat.new()
-	_btn_normal_style.bg_color = Color("#D97706")
-	_btn_normal_style.set_corner_radius_all(10)
-
-	_btn_patch_style = StyleBoxFlat.new()
-	_btn_patch_style.bg_color = Color("#10B981")
-	_btn_patch_style.border_color = Color("#34D399")
-	_btn_patch_style.set_border_width_all(2)
-	_btn_patch_style.set_corner_radius_all(10)
-
-	enter_btn.add_theme_stylebox_override("normal", _btn_normal_style)
+	var panel := StyleBoxFlat.new()
+	panel.bg_color = Color("#131A24")
+	panel.border_color = Color("#F59E0B")
+	panel.set_border_width_all(2)
+	panel.set_corner_radius_all(14)
+	panel.set_content_margin_all(28)
+	card.add_theme_stylebox_override("panel", panel)
+	_enter_style = StyleBoxFlat.new()
+	_enter_style.bg_color = Color("#D97706")
+	_enter_style.set_corner_radius_all(10)
+	_update_style = _enter_style.duplicate()
+	_update_style.bg_color = Color("#047857")
+	_update_style.border_color = Color("#34D399")
+	_update_style.set_border_width_all(2)
+	enter_btn.add_theme_stylebox_override("normal", _enter_style)
 
 	var save := SaveManager.save_data
 	hero_preview.configure(str(save.get("hero_class", "ranger")), str(save.get("gender", "male")))
-
 	enter_btn.pressed.connect(_on_button_pressed)
+	later_btn.pressed.connect(func() -> void: entered.emit())
 	boot_bar.value = 0.0
 	enter_btn.disabled = true
-	enter_btn.text = "INITIALIZING..."
-
-	_check_server_patch()
+	enter_btn.text = "CHECKING FOR UPDATES"
+	status_label.text = "Installed version v%s" % OtaPatch.installed_version
+	later_btn.show()
+	_check_release()
 
 
 func _process(delta: float) -> void:
-	match _state:
-		State.BOOTING:
-			if _progress < 100.0:
-				_progress = minf(100.0, _progress + delta * 185.0)
-				boot_bar.value = _progress
-				if _progress >= 100.0:
-					_state = State.PATCH_CHECKING
-					_evaluate_ready_state()
-
-		State.UPDATING:
-			if _active_download_req != null:
-				var downloaded := _active_download_req.get_downloaded_bytes()
-				var total := _active_download_req.get_body_size()
-				if total > 0:
-					var pct := clampf((float(downloaded) / float(total)) * 100.0, 0.0, 99.0)
-					boot_bar.value = pct
-					status_label.text = "Downloading PCK patch (v%s)... %d%% (%.1f / %.1f MB)" % [
-						_patch_version,
-						int(pct),
-						downloaded / 1048576.0,
-						total / 1048576.0
-					]
-				else:
-					boot_bar.value = fmod(boot_bar.value + delta * 35.0, 95.0)
-					status_label.text = "Downloading PCK patch (v%s)... %.1f MB" % [
-						_patch_version,
-						downloaded / 1048576.0
-					]
+	if _state == State.CHECKING:
+		boot_bar.value = minf(90.0, boot_bar.value + delta * 28.0)
+	elif _state == State.DOWNLOADING and is_instance_valid(_download):
+		var downloaded := _download.get_downloaded_bytes()
+		boot_bar.value = minf(float(downloaded) * 100.0 / float(_patch["size"]), 99.0)
+		status_label.text = "Downloading v%s… %d%%" % [_patch["version"], int(boot_bar.value)]
 
 
-func _check_server_patch() -> void:
-	# Notify Nakama check_update RPC if online, then resolve the exact .pck asset from GitHub Releases
-	var _nakama_info := await NetworkManager.check_patch_status()
-	var gh_release := await _fetch_latest_github_pck()
-
-	var cur_ver := NetworkManager.get_client_version().trim_prefix("v")
-	var latest_ver := str(gh_release.get("version", "")).trim_prefix("v")
-	var pck_url := str(gh_release.get("pck_url", ""))
-
-	if latest_ver != "" and latest_ver != cur_ver and pck_url.ends_with(".pck"):
-		_patch_version = latest_ver
-		_patch_download_url = pck_url
-		print("OTA target verified (PCK): ", _patch_download_url)
-	else:
-		_patch_version = ""
-		_patch_download_url = ""
-
-	if _state == State.PATCH_CHECKING:
-		_evaluate_ready_state()
-
-
-func _fetch_latest_github_pck() -> Dictionary:
+func _check_release() -> void:
 	var req := HTTPRequest.new()
+	req.use_threads = true
 	req.timeout = 8.0
+	req.body_size_limit = 1024 * 1024
 	add_child(req)
-
-	# GitHub API requires a User-Agent header
-	var headers := PackedStringArray([
-		"Accept: application/vnd.github+json",
-		"User-Agent: ZombieOutbreak-GodotClient"
-	])
-
-	var err := req.request(GITHUB_LATEST_RELEASE_API, headers, HTTPClient.METHOD_GET)
-	if err != OK:
-		req.queue_free()
-		return {}
-
-	var result: Array = await req.request_completed
+	var headers := PackedStringArray(["Accept: application/vnd.github+json", "User-Agent: ZombieOutbreak-GodotClient"])
+	var checked := false
+	if req.request(RELEASE_API, headers) == OK:
+		var result: Array = await req.request_completed
+		if int(result[0]) == HTTPRequest.RESULT_SUCCESS and int(result[1]) == 200:
+			var response = JSON.parse_string((result[3] as PackedByteArray).get_string_from_utf8())
+			if response is Dictionary:
+				checked = true
+				_patch = _select_release(response)
 	req.queue_free()
+	_show_available_action()
+	if not checked:
+		status_label.text = "Update check unavailable · Installed v%s" % OtaPatch.installed_version
 
-	if int(result[0]) != HTTPRequest.RESULT_SUCCESS or int(result[1]) != 200:
-		return {}
 
-	var body_str := (result[3] as PackedByteArray).get_string_from_utf8()
-	var parsed = JSON.parse_string(body_str)
-	if typeof(parsed) != TYPE_DICTIONARY:
-		return {}
-
-	var release: Dictionary = parsed
+func _select_release(release: Dictionary) -> Dictionary:
 	var tag := str(release.get("tag_name", ""))
-	var assets: Array = release.get("assets", [])
-
-	# Filter strictly for .pck files — ignore any .apk or source archives
+	var version := OtaPatch.normalize_version(tag)
+	if bool(release.get("draft", false)) or bool(release.get("prerelease", false)) or not OtaPatch.is_newer(version, OtaPatch.installed_version):
+		return {}
+	var expected_url := DOWNLOAD_ROOT + tag + "/" + PATCH_NAME
+	var assets = release.get("assets", [])
+	if not assets is Array:
+		return {}
 	for asset in assets:
-		var asset_name := str(asset.get("name", ""))
-		if asset_name.ends_with(".pck"):
-			return {
-				"version": tag,
-				"pck_url": str(asset.get("browser_download_url", ""))
-			}
-
+		if not asset is Dictionary:
+			continue
+		if str(asset.get("name", "")) != PATCH_NAME or str(asset.get("browser_download_url", "")) != expected_url:
+			continue
+		var digest := str(asset.get("digest", ""))
+		var size := int(asset.get("size", 0))
+		if digest.begins_with("sha256:") and digest.length() == 71 and size >= 4 and size <= OtaPatch.MAX_PATCH_BYTES:
+			return {"version": version, "url": expected_url, "sha256": digest.trim_prefix("sha256:"), "size": size}
 	return {}
 
 
-func _evaluate_ready_state() -> void:
-	if _patch_version != "" and _patch_download_url != "":
-		_state = State.PATCH_AVAILABLE
-		enter_btn.add_theme_stylebox_override("normal", _btn_patch_style)
-		enter_btn.text = "UPDATE NOW (v" + _patch_version + ")"
-		enter_btn.disabled = false
-		status_label.text = "New PCK Patch Available: v%s · Tap UPDATE NOW to patch" % _patch_version
-	else:
+func _show_available_action() -> void:
+	boot_bar.value = 100.0
+	enter_btn.disabled = false
+	if _patch.is_empty():
 		_state = State.READY
-		enter_btn.add_theme_stylebox_override("normal", _btn_normal_style)
-		var ver := NetworkManager.get_client_version().trim_prefix("v")
+		enter_btn.add_theme_stylebox_override("normal", _enter_style)
 		enter_btn.text = "ENTER COMMAND HUB"
-		enter_btn.disabled = false
-		status_label.text = "Bunker save ready (v%s) · Tap or press Enter" % ver
+		status_label.text = "Bunker save ready (v%s)" % OtaPatch.installed_version
+		later_btn.hide()
+	else:
+		_state = State.PATCH_AVAILABLE
+		enter_btn.add_theme_stylebox_override("normal", _update_style)
+		enter_btn.text = "UPDATE NOW (v%s)" % _patch["version"]
+		status_label.text = "Installed v%s · Update v%s available" % [OtaPatch.installed_version, _patch["version"]]
+		later_btn.show()
 
 
-func _download_and_apply_pck() -> void:
-	if FileAccess.file_exists(PATCH_TEMP_PATH):
-		DirAccess.remove_absolute(PATCH_TEMP_PATH)
+func _download_patch() -> void:
+	_remove_partial_download()
+	_state = State.DOWNLOADING
+	enter_btn.disabled = true
+	enter_btn.text = "DOWNLOADING UPDATE"
+	later_btn.hide()
+	boot_bar.value = 0.0
+	status_label.text = "Connecting to GitHub…"
 
 	var req := HTTPRequest.new()
 	req.use_threads = true
-	req.download_file = PATCH_TEMP_PATH
+	req.timeout = 120.0
+	req.body_size_limit = int(_patch["size"])
+	req.download_file = OtaPatch.DOWNLOAD_PATH
 	add_child(req)
-	_active_download_req = req
-
+	_download = req
 	var headers := PackedStringArray(["User-Agent: ZombieOutbreak-GodotClient"])
-	var err := req.request(_patch_download_url, headers, HTTPClient.METHOD_GET)
-	if err != OK:
-		_active_download_req = null
+	if req.request(str(_patch["url"]), headers) != OK:
+		_download = null
 		req.queue_free()
-		_on_patch_download_failed("Could not start PCK download.")
+		_download_failed("Could not start download.")
 		return
-
 	var result: Array = await req.request_completed
-	_active_download_req = null
+	_download = null
 	req.queue_free()
-
-	var req_result := int(result[0])
-	var resp_code := int(result[1])
-	if req_result != HTTPRequest.RESULT_SUCCESS or resp_code != 200:
-		_on_patch_download_failed("Download failed (HTTP %d)." % resp_code)
+	if int(result[0]) != HTTPRequest.RESULT_SUCCESS or int(result[1]) != 200:
+		_download_failed("The download could not finish.")
+		return
+	if OtaPatch.stage_update(str(_patch["version"]), str(_patch["sha256"]), int(_patch["size"])) != OK:
+		_download_failed("The update could not be verified or saved.")
 		return
 
-	status_label.text = "Mounting PCK patch into game engine... 100%"
+	_state = State.RESTART_REQUIRED
 	boot_bar.value = 100.0
-
-	if FileAccess.file_exists(PATCH_SAVE_PATH):
-		DirAccess.remove_absolute(PATCH_SAVE_PATH)
-	var rename_err := DirAccess.rename_absolute(PATCH_TEMP_PATH, PATCH_SAVE_PATH)
-	if rename_err != OK:
-		_on_patch_download_failed("Failed to save PCK file on device.")
-		return
-
-	# Mount the downloaded .pck so updated scenes/scripts override the base APK
-	var mounted := ProjectSettings.load_resource_pack(PATCH_SAVE_PATH, true)
-	if not mounted:
-		_on_patch_download_failed("Invalid PCK patch package.")
-		return
-
-	_on_patch_download_complete()
-
-
-func _on_patch_download_failed(reason: String) -> void:
-	_state = State.READY
-	enter_btn.add_theme_stylebox_override("normal", _btn_normal_style)
-	enter_btn.text = "ENTER COMMAND HUB"
+	AudioManager.play_pickup()
+	status_label.text = "v%s downloaded. Close and reopen the game to apply it." % _patch["version"]
+	enter_btn.text = "CLOSE GAME TO APPLY UPDATE"
 	enter_btn.disabled = false
-	status_label.text = "%s · Tap to continue on base version" % reason
+	later_btn.show()
 
 
-func _on_patch_download_complete() -> void:
-	_state = State.READY
-	NetworkManager.set_client_version(_patch_version)
-	AudioManager.play_level_up()
-	status_label.text = "PCK Patch v%s applied! · Tap to enter" % _patch_version
-	enter_btn.add_theme_stylebox_override("normal", _btn_normal_style)
-	enter_btn.text = "ENTER COMMAND HUB (v" + _patch_version + ")"
-	enter_btn.disabled = false
-	_patch_version = ""
-	_patch_download_url = ""
+func _remove_partial_download() -> void:
+	if FileAccess.file_exists(OtaPatch.DOWNLOAD_PATH):
+		DirAccess.remove_absolute(OtaPatch.DOWNLOAD_PATH)
+
+
+func _download_failed(reason: String) -> void:
+	_remove_partial_download()
+	_show_available_action()
+	status_label.text = reason + " Try again or play on your current version."
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if visible and event is InputEventKey and event.pressed:
-		var kev := event as InputEventKey
-		if kev.keycode == KEY_ENTER or kev.keycode == KEY_KP_ENTER or kev.keycode == KEY_SPACE:
+	if visible and event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]:
 			_on_button_pressed()
 
 
 func _on_button_pressed() -> void:
 	match _state:
 		State.PATCH_AVAILABLE:
-			_state = State.UPDATING
-			boot_bar.value = 0.0
-			enter_btn.disabled = true
-			enter_btn.text = "DOWNLOADING PCK..."
-			status_label.text = "Connecting to GitHub Releases..."
-			AudioManager.play_pickup()
-			_download_and_apply_pck()
-
+			_download_patch()
+		State.RESTART_REQUIRED:
+			get_tree().quit()
 		State.READY:
 			AudioManager.play_pickup()
 			entered.emit()

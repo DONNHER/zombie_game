@@ -179,7 +179,7 @@ func refresh_ui() -> void:
 	var gender := str(save.get("gender", "male"))
 	var lvl_info := GameRules.compute_level_from_xp(int(save.get("experience", 0)))
 
-	brand_title.text = GameData.t(lang, "title")
+	brand_title.text = str(ProjectSettings.get_setting("application/config/name", "Zombie Apocalypse: Ranger Outbreak"))
 	armory_btn.text = GameData.t(lang, "armory")
 	social_btn.text = GameData.t(lang, "social")
 	leaderboard_btn.text = GameData.t(lang, "leaderboards")

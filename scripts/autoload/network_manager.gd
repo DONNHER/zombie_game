@@ -14,39 +14,28 @@ signal server_error(message: String)
 signal realtime_disconnected(reason: String)
 
 const DEFAULT_SERVER_KEY := "defaultkey"
-const DEFAULT_SERVER_URL := "https://bedrooms-value-expand-arch.trycloudflare.com"
+const DEFAULT_SERVER_URL := "https://mardi-interest-postal-memorabilia.trycloudflare.com"
+const PREVIOUS_DEFAULT_URL := "https://bedrooms-value-expand-arch.trycloudflare.com"
 const COLLECTION_SAVES := "player_saves"
 const KEY_PROFILE := "profile_v1"
-const CLIENT_VERSION := "1.0.0"
 
 func get_client_version() -> String:
-	return str(SaveManager.settings.get("client_version", CLIENT_VERSION))
-
-func set_client_version(ver: String) -> void:
-	SaveManager.write_settings({"client_version": ver})
+	return OtaPatch.installed_version
 
 func check_patch_status() -> Dictionary:
-	var cur_ver := get_client_version()
-	if session_token == "":
-		var auth_res := await authenticate_guest()
-		if not bool(auth_res.get("ok", false)):
-			return {"has_patch": false, "error": auth_res.get("error", "Offline"), "client_version": cur_ver}
-	var rpc_res := await _call_rpc("check_update", {"client_version": cur_ver})
-	if bool(rpc_res.get("ok", false)) and rpc_res.has("has_patch"):
-		return rpc_res
-	# Fallback to deployment_status RPC
-	var dep_res := await _call_rpc("deployment_status", {})
-	if bool(dep_res.get("status", "") == "ok"):
-		var s_ver := str(dep_res.get("version", ""))
-		if s_ver != "" and s_ver != "dev" and s_ver != cur_ver:
-			return {
-				"ok": true,
-				"has_patch": true,
-				"server_version": s_ver,
-				"client_version": cur_ver,
-				"release_url": "https://github.com/DONNHER/zombie_game/releases/latest"
-			}
-	return {"ok": true, "has_patch": false, "server_version": cur_ver, "client_version": cur_ver}
+	var cur_ver := "v" + get_client_version()
+	var token := session_token
+	if token.is_empty():
+		var device_id := OS.get_unique_id()
+		if device_id.is_empty():
+			return {}
+		var auth := await _http_json(HTTPClient.METHOD_POST, "/v2/account/authenticate/device?create=true", {"id": device_id}, false)
+		token = str(auth.get("data", {}).get("token", ""))
+		if token.is_empty():
+			return auth
+	var payload := JSON.stringify(JSON.stringify({"client_version": cur_ver}))
+	var response := await _http_json(HTTPClient.METHOD_POST, "/v2/rpc/check_update", payload, true, token, 18.0)
+	return _decode_rpc_response(response)
 
 var server_key: String = DEFAULT_SERVER_KEY
 var server_url: String = DEFAULT_SERVER_URL
@@ -75,13 +64,10 @@ func _ready() -> void:
 	server_key = env_key if env_key != "" else DEFAULT_SERVER_KEY
 	var env_url := OS.get_environment("NAKAMA_SERVER_URL").strip_edges().rstrip("/")
 	var saved_url := str(SaveManager.settings.get("server_url", DEFAULT_SERVER_URL)).rstrip("/")
-	if saved_url == "" or saved_url.contains("127.0.0.1") or saved_url.contains("localhost"):
+	if saved_url.is_empty() or saved_url == PREVIOUS_DEFAULT_URL:
 		saved_url = DEFAULT_SERVER_URL
 		SaveManager.write_settings({"server_url": saved_url})
 	server_url = env_url if env_url != "" else saved_url
-	SaveManager.settings_changed.connect(func(s: Dictionary) -> void:
-		server_url = str(s.get("server_url", DEFAULT_SERVER_URL)).rstrip("/")
-	)
 
 
 func _process(_delta: float) -> void:
@@ -130,14 +116,15 @@ func clear_error() -> void:
 	connection_changed.emit(is_online, "")
 
 
-func _http_json(method: int, path: String, body: Variant = null, use_bearer: bool = true) -> Dictionary:
+func _http_json(method: int, path: String, body: Variant = null, use_bearer: bool = true, token_override: String = "", timeout: float = 5.0) -> Dictionary:
 	var req := HTTPRequest.new()
-	req.timeout = 5.0
+	req.timeout = timeout
 	add_child(req)
 
 	var headers := PackedStringArray(["Content-Type: application/json"])
-	if use_bearer and session_token != "":
-		headers.append("Authorization: Bearer " + session_token)
+	var token := token_override if not token_override.is_empty() else session_token
+	if use_bearer and not token.is_empty():
+		headers.append("Authorization: Bearer " + token)
 	else:
 		var basic := Marshalls.utf8_to_base64(server_key + ":")
 		headers.append("Authorization: Basic " + basic)
@@ -386,6 +373,10 @@ func _call_rpc(rpc_id: String, body_dict: Dictionary = {}) -> Dictionary:
 	var payload_str := JSON.stringify(body_dict)
 	# Nakama's wrapped HTTP RPC endpoint expects a JSON string as the request body.
 	var res := await _http_json(HTTPClient.METHOD_POST, "/v2/rpc/" + rpc_id, JSON.stringify(payload_str), true)
+	return _decode_rpc_response(res)
+
+
+func _decode_rpc_response(res: Dictionary) -> Dictionary:
 	if not bool(res["ok"]):
 		return res
 	var data: Dictionary = res["data"]

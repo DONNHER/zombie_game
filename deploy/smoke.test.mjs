@@ -7,7 +7,8 @@ const url = process.env.NAKAMA_TEST_URL ?? "http://127.0.0.1:17350";
 const key = process.env.NAKAMA_SERVER_KEY ?? "defaultkey";
 
 async function request(path, options) {
-  const response = await fetch(url + path, { signal: AbortSignal.timeout(8000), ...options });
+  const timeout = path === "/v2/rpc/check_update" ? 18000 : 8000;
+  const response = await fetch(url + path, { signal: AbortSignal.timeout(timeout), ...options });
   assert.ok(response.ok, `${path} returned HTTP ${response.status}: ${await response.clone().text()}`);
   return response.json();
 }
@@ -82,8 +83,9 @@ test("Nakama is healthy and reports the built revision", async () => {
   const status = await rpc(token, "deployment_status");
   assert.deepEqual(status, { status: "ok", version: process.env.APP_VERSION ?? "dev" });
   const updateInfo = await rpc(token, "check_update", { client_version: "0.9.0" });
-  assert.equal(updateInfo.ok, true);
-  assert.ok("server_version" in updateInfo);
+  assert.equal(typeof updateInfo.has_patch, "boolean");
+  if (updateInfo.ok) assert.match(updateInfo.server_version, /^v\d+\.\d+\.\d+$/);
+  else assert.equal(updateInfo.has_patch, false);
 });
 
 test("two accounts can create, find, and join the same co-op room", async (t) => {

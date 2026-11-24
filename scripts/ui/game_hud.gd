@@ -453,10 +453,16 @@ func update_hud(snap: Dictionary) -> void:
 
 	var waiting_wave := bool(snap.get("waiting_for_next_wave", false))
 	next_wave_btn.visible = waiting_wave
-	next_wave_btn.disabled = true
+	var can_skip := bool(snap.get("can_skip_wave_preparation", false))
+	next_wave_btn.disabled = not can_skip
 	if waiting_wave:
 		var prep_seconds := maxi(0, ceili(float(snap.get("wave_prep_remaining", 0.0))))
-		next_wave_btn.text = "COMPLETE STAGE TASK · WAVE %d READY" % (wave + 1) if prep_seconds == 0 and bool(snap.get("task_blocks_next_wave", false)) else "PREPARE FOR WAVE %d · %ds" % [wave + 1, prep_seconds]
+		if can_skip:
+			next_wave_btn.text = "SKIP PREP · START WAVE %d NOW (%ds)" % [wave + 1, prep_seconds]
+		elif prep_seconds == 0 and bool(snap.get("task_blocks_next_wave", false)):
+			next_wave_btn.text = "COMPLETE STAGE TASK · WAVE %d READY" % (wave + 1)
+		else:
+			next_wave_btn.text = "PREPARE FOR WAVE %d · %ds" % [wave + 1, prep_seconds]
 
 	var in_bunker := bool(snap.get("in_bunker", false))
 	shop_btn.modulate = Color("#22C55E") if in_bunker else Color("#F8FAFC")
