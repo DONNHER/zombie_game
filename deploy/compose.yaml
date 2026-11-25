@@ -1,46 +1,46 @@
 services:
   postgres:
-	image: postgres:16-alpine
-	restart: unless-stopped
-	environment:
-	  POSTGRES_DB: nakama
-	  POSTGRES_USER: postgres
-	  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?initialize server environment first}
-	volumes:
-	  - postgres_data:/var/lib/postgresql/data
-	healthcheck:
-	  test: ["CMD", "pg_isready", "-U", "postgres", "-d", "nakama"]
-	  interval: 3s
-	  timeout: 3s
-	  retries: 20
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nakama
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?initialize server environment first}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "nakama"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
 
   nakama:
-	image: ranger-outbreak-nakama:${APP_VERSION:?set the release version}
-	build:
-	  context: ..
-	  dockerfile: deploy/Dockerfile
-	  args:
-		APP_VERSION: ${APP_VERSION}
-	restart: unless-stopped
-	depends_on:
-	  postgres:
-		condition: service_healthy
-	environment:
-	  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?initialize server environment first}
-	  NAKAMA_SERVER_KEY: ${NAKAMA_SERVER_KEY:?set the game client key}
-	  NAKAMA_CONSOLE_PASSWORD: ${NAKAMA_CONSOLE_PASSWORD:?initialize server environment first}
-	  NAKAMA_CONSOLE_SIGNING_KEY: ${NAKAMA_CONSOLE_SIGNING_KEY:?initialize server environment first}
-	  NAKAMA_SESSION_KEY: ${NAKAMA_SESSION_KEY:?initialize server environment first}
-	  NAKAMA_REFRESH_KEY: ${NAKAMA_REFRESH_KEY:?initialize server environment first}
-	  NAKAMA_HTTP_KEY: ${NAKAMA_HTTP_KEY:?initialize server environment first}
-	ports:
-	  - "${NAKAMA_BIND_IP:-0.0.0.0}:${NAKAMA_PORT:-7350}:7350"
-	  - "${NAKAMA_CONSOLE_PORT:-7351}:7351"
-	healthcheck:
-	  test: ["CMD", "/nakama/nakama", "healthcheck"]
-	  interval: 5s
-	  timeout: 4s
-	  retries: 20
+    image: ranger-outbreak-nakama:${APP_VERSION:?set the release version}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?initialize server environment first}
+      NAKAMA_SERVER_KEY: ${NAKAMA_SERVER_KEY:?set the game client key}
+      NAKAMA_CONSOLE_PASSWORD: ${NAKAMA_CONSOLE_PASSWORD:?initialize server environment first}
+      NAKAMA_CONSOLE_SIGNING_KEY: ${NAKAMA_CONSOLE_SIGNING_KEY:?initialize server environment first}
+      NAKAMA_SESSION_KEY: ${NAKAMA_SESSION_KEY:?initialize server environment first}
+      NAKAMA_REFRESH_KEY: ${NAKAMA_REFRESH_KEY:?initialize server environment first}
+      NAKAMA_HTTP_KEY: ${NAKAMA_HTTP_KEY:?initialize server environment first}
+    ports:
+      - "${NAKAMA_BIND_IP:-0.0.0.0}:${NAKAMA_PORT:-7350}:7350"
+      - "${NAKAMA_CONSOLE_PORT:-7351}:7351"
+    healthcheck:
+      test: ["CMD", "/nakama/nakama", "healthcheck"]
+      interval: 5s
+      timeout: 4s
+      retries: 20
 
 volumes:
   postgres_data:
