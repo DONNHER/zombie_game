@@ -1,11 +1,5 @@
 extends Node
 
-const NAKAMA_SERVER_URL := "https://arthritis-inquiry-variance-handheld.trycloudflare.com"
-const RETIRED_NAKAMA_URLS := [
-	"https://mardi-interest-postal-memorabilia.trycloudflare.com",
-	"https://bedrooms-value-expand-arch.trycloudflare.com",
-]
-
 const WEAPON_ORDER: Array[String] = [
 	"basic_pistol",
 	"enhanced_pistol",
@@ -971,9 +965,9 @@ func get_stage_by_id(stage_id: int, portal_realm: int = 1) -> Dictionary:
 
 
 func _expand_arena(arena: Dictionary) -> Dictionary:
-	# Space the bunkers farther apart while keeping their rooms and doorways the same size.
-	const X_SCALE := 1.40
-	const Y_SCALE := 1.22
+	# Give players roughly one extra dodge lane without changing bunker or obstacle sizes.
+	const X_SCALE := 1.17
+	const Y_SCALE := 1.18
 	arena["map_width"] = float(arena["map_width"]) * X_SCALE
 	arena["map_height"] = float(arena["map_height"]) * Y_SCALE
 	for group in ["bunkers", "obstacles", "lanterns"]:
@@ -981,11 +975,6 @@ func _expand_arena(arena: Dictionary) -> Dictionary:
 			item["x"] = float(item["x"]) * X_SCALE
 			item["y"] = float(item["y"]) * Y_SCALE
 	return arena
-
-
-func resolve_nakama_url(url: String) -> String:
-	var cleaned := url.strip_edges().rstrip("/")
-	return NAKAMA_SERVER_URL if cleaned.is_empty() or cleaned in RETIRED_NAKAMA_URLS else cleaned
 
 
 func get_maya_infection_story() -> Dictionary:

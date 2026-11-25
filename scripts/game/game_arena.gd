@@ -153,7 +153,7 @@ func start_match(config: Dictionary) -> void:
 	is_online = bool(config.get("online", false))
 	is_host = (not is_online) or NetworkManager.is_room_host()
 	portal_realm = 1
-	_stage_data = GameData.get_stage_by_id(99 if mode == "endless" else (1 if mode == "tutorial" else stage_id), portal_realm)
+	_load_arena_layout(99 if mode == "endless" else (1 if mode == "tutorial" else stage_id))
 
 	var save := SaveManager.save_data
 	var h_class := str(save.get("hero_class", "ranger"))
@@ -614,6 +614,19 @@ func _reset_exploration() -> void:
 	if is_host:
 		_reveal_squad_positions()
 		_exploration.refresh_texture()
+
+
+func _load_arena_layout(layout_id: int) -> void:
+	# Scale the playable map here so the same layout loads even with an older APK's GameData.
+	const X_SCALE := 1.40 / 1.17
+	const Y_SCALE := 1.22 / 1.18
+	_stage_data = GameData.get_stage_by_id(layout_id, portal_realm)
+	_stage_data["map_width"] = float(_stage_data["map_width"]) * X_SCALE
+	_stage_data["map_height"] = float(_stage_data["map_height"]) * Y_SCALE
+	for group in ["bunkers", "obstacles", "lanterns"]:
+		for item in _stage_data.get(group, []):
+			item["x"] = float(item["x"]) * X_SCALE
+			item["y"] = float(item["y"]) * Y_SCALE
 
 
 func _reveal_squad_positions() -> void:
@@ -2087,7 +2100,7 @@ func _enter_next_endless_portal() -> void:
 	rolling_phase = "none"
 	_gather_with_maya = false
 	portal_realm += 1
-	_stage_data = GameData.get_stage_by_id(99, portal_realm)
+	_load_arena_layout(99)
 	builds.clear()
 	var bunker := _get_current_bunker()
 	var squad: Array = remote_players.values()
@@ -2533,7 +2546,7 @@ func _apply_world_snapshot(state: Dictionary) -> void:
 	var realm := int(state.get("realm", 1))
 	if portal_realm != realm:
 		portal_realm = realm
-		_stage_data = GameData.get_stage_by_id(99, realm)
+		_load_arena_layout(99)
 		_reset_exploration()
 		toast_requested.emit("Portal warp to Realm %d" % realm)
 	_exploration.apply(str(state.get("explored", "")))

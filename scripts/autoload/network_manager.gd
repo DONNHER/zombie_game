@@ -1,5 +1,7 @@
 extends Node
 
+const NakamaEndpoint = preload("res://scripts/autoload/nakama_endpoint.gd")
+
 signal connection_changed(is_online: bool, error_msg: String)
 signal auth_changed(user: Dictionary)
 signal room_updated(room: Dictionary)
@@ -36,7 +38,7 @@ func check_patch_status() -> Dictionary:
 	return _decode_rpc_response(response)
 
 var server_key: String = DEFAULT_SERVER_KEY
-var server_url: String = GameData.NAKAMA_SERVER_URL
+var server_url: String = NakamaEndpoint.DEFAULT_URL
 var session_token: String = ""
 var auth_user: Dictionary = {} # {user_id, username, is_guest}
 var is_online: bool = false
@@ -62,7 +64,7 @@ func _ready() -> void:
 	server_key = env_key if env_key != "" else DEFAULT_SERVER_KEY
 	var env_url := OS.get_environment("NAKAMA_SERVER_URL").strip_edges().rstrip("/")
 	var stored_url := str(SaveManager.settings.get("server_url", ""))
-	var saved_url := GameData.resolve_nakama_url(stored_url)
+	var saved_url := NakamaEndpoint.resolve(stored_url)
 	if saved_url != stored_url:
 		SaveManager.write_settings({"server_url": saved_url})
 	server_url = env_url if env_url != "" else saved_url
@@ -95,7 +97,7 @@ func _process(_delta: float) -> void:
 
 
 func set_server_url(url: String) -> void:
-	server_url = GameData.resolve_nakama_url(url)
+	server_url = NakamaEndpoint.resolve(url)
 	SaveManager.write_settings({"server_url": server_url})
 
 

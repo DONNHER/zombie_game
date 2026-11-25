@@ -1,5 +1,7 @@
 extends Node
 
+const NakamaEndpoint = preload("res://scripts/autoload/nakama_endpoint.gd")
+
 @onready var arena: Node2D = $WorldLayer/GameArena
 @onready var splash: Control = $UILayer/SplashScreen
 @onready var lobby: Control = $UILayer/LobbyHub
@@ -31,7 +33,7 @@ func _ready() -> void:
 	# The OTA loader in older APKs keeps their original NetworkManager script.
 	if OS.get_environment("NAKAMA_SERVER_URL").strip_edges().is_empty():
 		var current_url := NetworkManager.server_url
-		var resolved_url := GameData.resolve_nakama_url(current_url)
+		var resolved_url := NakamaEndpoint.resolve(current_url)
 		if current_url != resolved_url:
 			NetworkManager.set_server_url(resolved_url)
 	get_tree().auto_accept_quit = false
