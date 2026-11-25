@@ -1,6 +1,7 @@
 extends Node2D
 
 const ComicActorDraw = preload("res://scripts/game/comic_actor_draw.gd")
+const ArenaExploration = preload("res://scripts/game/arena_exploration.gd")
 
 signal hud_updated(snapshot: Dictionary)
 signal match_finished(summary: Dictionary)
@@ -21,6 +22,7 @@ const ENEMY_DAMAGE_SCALE := 0.50
 const BOSS_DAMAGE_SCALE := 0.55
 const STOCKED_ITEMS := ["ammo_medkit", "build_wall", "build_spike", "build_turret", "revive_kit"]
 const WAVE_PREP_SECONDS := 30.0
+const ARENA_EDGE_INSET := 128.0
 const CORPSE_REST_SECONDS := 0.95
 const CORPSE_REACH_SECONDS := 1.25
 const CORPSE_GRIP_SECONDS := 0.65
@@ -40,6 +42,7 @@ const ENTITY_FIELDS := {
 }
 
 @onready var cam: Camera2D = $Camera2D
+@onready var _fog: Sprite2D = $ExplorationFog
 
 # Match config
 var mode: String = "story" # "story" | "endless" | "tutorial"
@@ -48,6 +51,8 @@ var is_online: bool = false
 var is_host: bool = true
 var portal_realm: int = 1
 var _stage_data: Dictionary = {}
+var _exploration := ArenaExploration.new()
+var _terrain: Array[Rect2] = []
 
 # Player state
 var player: Dictionary = {}
@@ -80,6 +85,7 @@ var wave: int = 1
 var current_bunker_idx: int = 0
 var enemies_to_spawn: Array[String] = []
 var spawn_timer: float = 0.0
+var _edge_spawn_index: int = 0
 var waiting_for_next_wave: bool = false
 var wave_prep_remaining: float = 0.0
 var boss_spawned_for_wave: bool = false
@@ -128,6 +134,7 @@ var _local_user_id: String = ""
 var _world_sequence: int = 0
 var _spawn_remaining: int = 0
 var _firing: bool = false
+var _mouse_fire_down: bool = false
 var _input_sequence: int = 0
 var _acked_input_sequence: int = 0
 var _pending_input_positions: Dictionary = {}
@@ -224,6 +231,7 @@ func start_match(config: Dictionary) -> void:
 	_world_sequence = 0
 	_spawn_remaining = 0
 	_firing = false
+	_mouse_fire_down = false
 	_input_sequence = 0
 	_acked_input_sequence = 0
 	_pending_input_positions.clear()
@@ -246,6 +254,7 @@ func start_match(config: Dictionary) -> void:
 		_broadcast_local_state()
 	if is_host:
 		_begin_wave(1)
+	_reset_exploration()
 	_emit_hud_snapshot()
 	queue_redraw()
 
@@ -374,6 +383,7 @@ func _begin_wave(w: int) -> void:
 	waiting_for_next_wave = false
 	wave_prep_remaining = 0.0
 	boss_spawned_for_wave = false
+	_edge_spawn_index = 0
 	enemies_to_spawn.clear()
 
 	var bunkers: Array = _stage_data.get("bunkers", [])
@@ -381,6 +391,7 @@ func _begin_wave(w: int) -> void:
 		current_bunker_idx = clampi(w - 1, 0, bunkers.size() - 1)
 	elif mode == "endless" and bunkers.size() > 0:
 		current_bunker_idx = (w - 1) % bunkers.size()
+	_terrain = _terrain_blockers(_get_current_bunker())
 
 	if mode == "tutorial":
 		enemies_to_spawn = ["basic", "basic", "basic", "fast"]
@@ -577,6 +588,9 @@ func _process(delta: float) -> void:
 	_hud_sync_timer += delta
 	if _hud_sync_timer >= 0.08:
 		_hud_sync_timer = 0.0
+		if is_host:
+			_reveal_squad_positions()
+		_exploration.refresh_texture()
 		_emit_hud_snapshot()
 
 	if is_online:
@@ -590,6 +604,28 @@ func _process(delta: float) -> void:
 				_broadcast_local_state()
 
 	queue_redraw()
+
+
+func _reset_exploration() -> void:
+	var map_size := Vector2(float(_stage_data["map_width"]), float(_stage_data["map_height"]))
+	_exploration.reset(map_size, _stage_data.get("bunkers", []))
+	_fog.texture = _exploration.texture
+	_fog.scale = Vector2.ONE * ArenaExploration.CELL_SIZE
+	if is_host:
+		_reveal_squad_positions()
+		_exploration.refresh_texture()
+
+
+func _reveal_squad_positions() -> void:
+	var barrier_x := _get_active_sector_barrier_x()
+	var squad: Array[Dictionary] = [player]
+	squad.append_array(remote_players.values())
+	for actor in _living_players(squad):
+		_exploration.reveal(_actor_position(actor), barrier_x)
+
+
+func _visible_enemies() -> Array[Dictionary]:
+	return enemies.filter(func(enemy: Dictionary) -> bool: return _exploration.can_see(_actor_position(enemy)))
 
 
 func _init_remote_actor_smoothing(actor: Dictionary, x: float, y: float, angle: float) -> void:
@@ -805,6 +841,8 @@ func _update_player_movement(delta: float) -> void:
 	if mv.length() > 1.0:
 		mv = mv.normalized()
 	player["visual_moving"] = mv.length() > 0.08
+	if bool(player["visual_moving"]):
+		player["angle"] = mv.angle()
 
 	var spd := _check_hazards(player, delta)
 
@@ -843,33 +881,22 @@ func _check_hazards(actor: Dictionary, delta: float) -> float:
 
 
 func _update_player_aim_and_fire() -> void:
-	var candidates: Array = []
-	for e in enemies:
-		candidates.append({"id": e["id"], "x": e["x"], "y": e["y"], "radius": e["radius"]})
-	var target := GameRules.select_aim_target(float(player["x"]), float(player["y"]), aim_target_id, candidates, 900.0)
-	if not target.is_empty():
-		aim_target_id = target["id"]
-		player["angle"] = atan2(float(target["y"]) - float(player["y"]), float(target["x"]) - float(player["x"]))
-	else:
-		aim_target_id = null
-
-	var hovered := get_viewport().gui_get_hovered_control()
-	var manual_mouse_fire := hovered == null and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and float(player["reload_timer"]) <= 0.0
-	var touch_fire := false
-	if _hud_ref and _hud_ref.has_method("is_touch_firing"):
-		touch_fire = bool(_hud_ref.is_touch_firing())
-
-	if manual_mouse_fire and target.is_empty():
-		var m_world := get_global_mouse_position()
-		player["angle"] = atan2(m_world.y - float(player["y"]), m_world.x - float(player["x"]))
-
-	var wants_fire := manual_mouse_fire or touch_fire
+	var manual_mouse_fire := _mouse_fire_down and get_viewport().gui_get_hovered_control() == null
+	var wants_fire := manual_mouse_fire or (_hud_ref != null and bool(_hud_ref.is_touch_firing()))
+	var barrage_active := float(player["mg_timer"]) > 0.0
+	if wants_fire or barrage_active:
+		var target := GameRules.select_aim_target(float(player["x"]), float(player["y"]), aim_target_id, _visible_enemies(), 900.0)
+		aim_target_id = target.get("id")
+		if not target.is_empty():
+			player["angle"] = (_actor_position(target) - _actor_position(player)).angle()
+		elif manual_mouse_fire:
+			player["angle"] = (get_global_mouse_position() - _actor_position(player)).angle()
 	if not is_host:
 		if wants_fire != _firing:
 			_firing = wants_fire
 			_broadcast_local_state()
 		return
-	if wants_fire or float(player["mg_timer"]) > 0.0:
+	if wants_fire or barrage_active:
 		_fire_weapon(player)
 
 
@@ -951,39 +978,51 @@ func _start_reload(actor: Dictionary) -> void:
 		tutorial_step_idx = 4
 
 
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.device != InputEvent.DEVICE_ID_EMULATION and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+		_mouse_fire_down = false
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
+		_mouse_fire_down = false
+
+
 func _unhandled_input(event: InputEvent) -> void:
-	if match_ended or is_paused or shared_paused or player.is_empty():
+	if not visible or match_ended or is_paused or shared_paused or player.is_empty() or event.device == InputEvent.DEVICE_ID_EMULATION:
 		return
-	if event is InputEventMouseButton:
-		var mb := event as InputEventMouseButton
-		if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed and get_viewport().gui_get_hovered_control() == null:
-			var click_world := get_global_mouse_position()
-			var picked_id: Variant = null
-			var best_sq := 46.0 * 46.0
-			for e in enemies:
-				var er := float(e["radius"]) + 14.0
-				var d_sq := click_world.distance_squared_to(Vector2(float(e["x"]), float(e["y"])))
-				if d_sq <= maxf(best_sq, er * er):
-					best_sq = d_sq
-					picked_id = e["id"]
-			if picked_id != null:
-				aim_target_id = picked_id
-				if mode == "tutorial" and tutorial_step_idx == 1:
-					tutorial_step_idx = 2
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		_mouse_fire_down = true
+	elif not (event is InputEventScreenTouch and event.pressed and not event.canceled):
+		return
+	var click_world: Vector2 = get_global_transform_with_canvas().affine_inverse() * event.position
+	var picked_id: Variant = null
+	var best_sq := 46.0 * 46.0
+	for e in _visible_enemies():
+		var er := float(e["radius"]) + 14.0
+		var d_sq := click_world.distance_squared_to(_actor_position(e))
+		if d_sq <= maxf(best_sq, er * er):
+			best_sq = d_sq
+			picked_id = e["id"]
+	if picked_id != null:
+		aim_target_id = picked_id
+		if mode == "tutorial" and tutorial_step_idx == 1:
+			tutorial_step_idx = 2
 
 
 func cycle_target() -> void:
 	if shared_paused:
 		return
-	if enemies.is_empty():
+	var targets := _visible_enemies()
+	if targets.is_empty():
 		aim_target_id = null
 		return
 	var idx := -1
-	for i in range(enemies.size()):
-		if enemies[i]["id"] == aim_target_id:
+	for i in range(targets.size()):
+		if targets[i]["id"] == aim_target_id:
 			idx = i
 			break
-	aim_target_id = enemies[(idx + 1) % enemies.size()]["id"]
+	aim_target_id = targets[(idx + 1) % targets.size()]["id"]
 	AudioManager.play_pickup()
 
 
@@ -1278,7 +1317,7 @@ func _update_maya_tower(delta: float) -> void:
 	var m_range := float(ms["range"])
 	var best_e: Dictionary = {}
 	var best_d := m_range * m_range
-	for e in enemies:
+	for e in _visible_enemies():
 		var d_sq := Vector2(float(e["x"]) - m_pos.x, float(e["y"]) - m_pos.y).length_squared()
 		if d_sq < best_d:
 			best_d = d_sq
@@ -1311,7 +1350,7 @@ func _update_clones(delta: float) -> void:
 		c["y"] = follow_pos.y
 		c["fire_timer"] = float(c["fire_timer"]) - delta
 		if float(c["fire_timer"]) <= 0.0 and not enemies.is_empty():
-			var near := GameRules.select_aim_target(float(c["x"]), float(c["y"]), null, enemies, 480.0)
+			var near := GameRules.select_aim_target(float(c["x"]), float(c["y"]), null, _visible_enemies(), 480.0)
 			if not near.is_empty():
 				c["fire_timer"] = 0.28
 				var ang := atan2(float(near["y"]) - float(c["y"]), float(near["x"]) - float(c["x"]))
@@ -1323,7 +1362,7 @@ func _update_builds(delta: float) -> void:
 		if str(b["kind"]) == "turret":
 			b["fire_timer"] = float(b["fire_timer"]) - delta
 			if float(b["fire_timer"]) <= 0.0 and not enemies.is_empty():
-				var near := GameRules.select_aim_target(float(b["x"]), float(b["y"]), null, enemies, 420.0)
+				var near := GameRules.select_aim_target(float(b["x"]), float(b["y"]), null, _visible_enemies(), 420.0)
 				if not near.is_empty():
 					b["fire_timer"] = maxf(0.18, 0.48 - float(int(b["level"]) - 1) * 0.07)
 					var ang := atan2(float(near["y"]) - float(b["y"]), float(near["x"]) - float(b["x"]))
@@ -1550,7 +1589,7 @@ func _try_finish_maya_finale() -> void:
 		_complete_match(true)
 
 
-func _spawn_enemy_by_code(code: String) -> void:
+func _stage_boss_spawn() -> Vector2:
 	var mw := float(_stage_data.get("map_width", 2600.0))
 	var mh := float(_stage_data.get("map_height", 1200.0))
 	var bunker := _get_current_bunker()
@@ -1581,18 +1620,69 @@ func _spawn_enemy_by_code(code: String) -> void:
 		_:
 			sx = clampf(bx + randf_range(-hw - 120.0, hw + 120.0), 80.0, max_spawn_x)
 			sy = clampf(by + hh + randf_range(100.0, 220.0), 90.0, mh - 90.0)
+	return Vector2(sx, sy)
 
+
+func _edge_spawn_position(radius: float) -> Vector2:
+	var bunker := _get_current_bunker()
+	var center := _actor_position(bunker)
+	var half_height := float(GameRules.get_bunker_bounds(bunker)["half_h"])
+	var map_width := float(_stage_data["map_width"])
+	var map_height := float(_stage_data["map_height"])
+	var north := _edge_spawn_index % 2 == 0
+	_edge_spawn_index += 1
+	var edge_buffer := radius + 24.0
+	var spawn_y := edge_buffer if north else map_height - edge_buffer
+	var arrival_y := center.y + (-1.0 if north else 1.0) * (half_height + 95.0)
+	var min_x := ARENA_EDGE_INSET + radius + 12.0
+	var max_x := map_width - min_x
+	var barrier_x := _get_active_sector_barrier_x()
+	if barrier_x > 0.0:
+		max_x = minf(max_x, barrier_x - radius - 16.0)
+	if mode == "story" and current_bunker_idx > 0:
+		min_x = maxf(min_x, GameRules.get_sector_barrier_x(bunker) + radius + 16.0)
+	var entrance_x := clampf(center.x, min_x, max_x)
+	# Pick a clear lane through this sector's outer obstacles.
+	for offset in [0.0, -110.0, 110.0, -220.0, 220.0, -330.0, 330.0]:
+		var x := clampf(center.x + float(offset), min_x, max_x)
+		var corridor := Rect2(x - radius, minf(spawn_y, arrival_y), radius * 2.0, absf(spawn_y - arrival_y))
+		var blocked := false
+		for obstacle in _terrain:
+			if corridor.intersects(obstacle):
+				blocked = true
+				break
+		if not blocked:
+			entrance_x = x
+			break
+	return Vector2(entrance_x, spawn_y)
+
+
+func _terrain_blockers(active_bunker: Dictionary) -> Array[Rect2]:
+	var blockers: Array[Rect2] = []
+	for obs in _stage_data["obstacles"]:
+		if str(obs["kind"]) != "hazard":
+			blockers.append(Rect2(float(obs["x"]), float(obs["y"]), float(obs["w"]), float(obs["h"])))
+	for bunker in _stage_data["bunkers"]:
+		if bunker["id"] == active_bunker["id"]:
+			continue
+		var bounds := GameRules.get_bunker_bounds(bunker)
+		var half_size := Vector2(float(bounds["half_w"]), float(bounds["half_h"]))
+		blockers.append(Rect2(_actor_position(bunker) - half_size, half_size * 2.0))
+	return blockers
+
+
+func _spawn_enemy_by_code(code: String) -> void:
 	if code.begins_with("BOSS:"):
 		var bid := code.substr(5)
 		var bdef: Dictionary = GameData.BOSSES.get(bid, GameData.BOSSES["village_boss"])
 		var b_hp := GameRules.calculate_wave_enemy_hp(float(bdef["base_hp"]), wave)
+		var spawn := _stage_boss_spawn()
 		if bid == "human_tumbleweed":
 			b_hp += mini(corpse_count, 100) * 4
-			sx = gather_center.x
-			sy = gather_center.y
+			spawn = gather_center
 		enemies.append({
 			"id": _uid(), "is_boss": true, "boss_id": bid, "type": "boss",
-			"name": str(bdef["name"]), "x": sx, "y": sy,
+			"name": str(bdef["name"]), "x": spawn.x, "y": spawn.y,
 			"hp": float(b_hp), "max_hp": float(b_hp),
 			"speed": float(bdef["speed"]) * ENEMY_MOVE_SPEED_SCALE, "damage": maxi(1, int(round(float(GameRules.calculate_wave_enemy_damage(float(bdef["base_damage"]), wave)) * ENEMY_DAMAGE_SCALE * BOSS_DAMAGE_SCALE))),
 			"radius": float(bdef["radius"]) + (minf(18.0, float(corpse_count) * 0.22) if bid == "human_tumbleweed" else 0.0), "color": str(bdef["color"]), "corpse_count": corpse_count,
@@ -1604,12 +1694,14 @@ func _spawn_enemy_by_code(code: String) -> void:
 
 	var edef: Dictionary = GameData.ENEMIES.get(code, GameData.ENEMIES["basic"])
 	var e_hp := GameRules.calculate_wave_enemy_hp(float(edef["base_hp"]), wave)
+	var radius := float(edef["radius"])
+	var spawn := _edge_spawn_position(radius)
 	enemies.append({
 		"id": _uid(), "is_boss": false, "boss_id": "", "type": code,
-		"name": str(edef["name"]), "x": sx, "y": sy,
+		"name": str(edef["name"]), "x": spawn.x, "y": spawn.y,
 		"hp": float(e_hp), "max_hp": float(e_hp),
 		"speed": float(edef["speed"]) * ENEMY_MOVE_SPEED_SCALE, "damage": maxi(1, int(round(float(GameRules.calculate_wave_enemy_damage(float(edef["base_damage"]), wave)) * ENEMY_DAMAGE_SCALE))),
-		"radius": float(edef["radius"]), "color": str(edef["color"]), "corpse_count": 0,
+		"radius": radius, "color": str(edef["color"]), "corpse_count": 0,
 		"passes_walls": bool(edef.get("passes_walls", false)),
 		"atk_cd": 0.0, "spec_cd": 2.4, "slow_timer": 0.0,
 	})
@@ -1651,7 +1743,7 @@ func _update_enemies(delta: float, living: Array[Dictionary]) -> void:
 				if best_d > 38.0 * 38.0:
 					n_dir = (best_door - Vector2(ex, ey)).normalized()
 
-		var next_pos := _resolve_world_collisions(ex + n_dir.x * spd * delta, ey + n_dir.y * spd * delta, float(e["radius"]), passes_walls)
+		var next_pos := _move_enemy_toward_player(e, Vector2(ex, ey), Vector2(px, py), n_dir, spd * delta, passes_walls)
 		e["x"] = next_pos.x
 		e["y"] = next_pos.y
 
@@ -1683,6 +1775,36 @@ func _update_enemies(delta: float, living: Array[Dictionary]) -> void:
 				b["hp"] = float(b["hp"]) - float(e["damage"]) * delta * 1.4
 				if float(b["hp"]) <= 0.0:
 					builds.remove_at(bi)
+
+
+func _move_enemy_toward_player(enemy: Dictionary, from: Vector2, target: Vector2, direction: Vector2, distance: float, passes_walls: bool) -> Vector2:
+	var radius := float(enemy["radius"])
+	var detour: Array = enemy.get("pursuit_detour", [])
+	var requested := from + direction * distance
+	if not detour.is_empty():
+		var offset: Vector2 = detour[0] - from
+		requested = from + offset.limit_length(distance)
+		if offset.length() <= distance:
+			detour.pop_front()
+	var next := _resolve_world_collisions(requested.x, requested.y, radius, passes_walls)
+	if not passes_walls and direction != Vector2.ZERO and detour.is_empty() and (next - from).dot(direction) < distance * 0.5:
+		for blocker in _terrain:
+			if blocker.grow(radius + 1.0).has_point(requested) and not blocker.has_point(target):
+				enemy["pursuit_detour"] = _detour_around(blocker, radius, from, target)
+				break
+	return next
+
+
+func _detour_around(blocker: Rect2, radius: float, from: Vector2, target: Vector2) -> Array[Vector2]:
+	var clearance := blocker.grow(radius + 12.0)
+	var corners := [clearance.position, Vector2(clearance.end.x, clearance.position.y), clearance.end, Vector2(clearance.position.x, clearance.end.y)]
+	var sides := [absf(from.y - blocker.position.y), absf(from.x - blocker.end.x), absf(from.y - blocker.end.y), absf(from.x - blocker.position.x)]
+	var side := sides.find(sides.min())
+	var left: Array[Vector2] = [corners[side], corners[(side + 3) % 4]]
+	var right: Array[Vector2] = [corners[(side + 1) % 4], corners[(side + 2) % 4]]
+	var left_cost := from.distance_to(left[0]) + target.distance_to(left[1])
+	var right_cost := from.distance_to(right[0]) + target.distance_to(right[1])
+	return left if left_cost <= right_cost else right
 
 
 func _update_projectiles(delta: float, living: Array[Dictionary]) -> void:
@@ -1976,6 +2098,7 @@ func _enter_next_endless_portal() -> void:
 		actor["warp_id"] = int(actor["warp_id"]) + 1
 		if not is_same(actor, player):
 			_init_remote_actor_smoothing(actor, float(bunker["x"]), float(bunker["y"]), float(actor["angle"]))
+	_reset_exploration()
 	AudioManager.play_victory()
 	toast_requested.emit("PORTAL WARP -> Realm %d (%s)! Skills surged +35%%!" % [portal_realm, str(_stage_data.get("name", ""))])
 
@@ -2367,6 +2490,7 @@ func _create_world_snapshot(summary: Dictionary = {}) -> Dictionary:
 			pause_remaining[uid] = seconds
 	return {
 		"seq": _world_sequence, "players": squad,
+		"explored": _exploration.encode(),
 		"team_paused": shared_paused, "pause_owner": shared_pause_owner_id,
 		"pause_owner_name": shared_pause_owner_name,
 		"pause_remaining": pause_remaining,
@@ -2410,7 +2534,9 @@ func _apply_world_snapshot(state: Dictionary) -> void:
 	if portal_realm != realm:
 		portal_realm = realm
 		_stage_data = GameData.get_stage_by_id(99, realm)
+		_reset_exploration()
 		toast_requested.emit("Portal warp to Realm %d" % realm)
+	_exploration.apply(str(state.get("explored", "")))
 	current_bunker_idx = int(state.get("bunker", 0))
 	stage_task = state.get("stage_task", {}).duplicate()
 	portal_active = bool(state.get("portal", false))
@@ -2726,6 +2852,7 @@ func _draw() -> void:
 	var floor_col := Color(str(_stage_data.get("floor_color", "#36453B")))
 	var grid_col := Color(str(_stage_data.get("floor_grid_color", "#2B382F")))
 	var font := ThemeDB.fallback_font
+	var visible_enemies := _visible_enemies()
 
 	# Terrain floor + subtle tactical grid
 	draw_rect(Rect2(0, 0, mw, mh), floor_col)
@@ -2733,6 +2860,8 @@ func _draw() -> void:
 		draw_line(Vector2(gx, 0), Vector2(gx, mh), grid_col, 1.5)
 	for gy in range(0, int(mh), 80):
 		draw_line(Vector2(0, gy), Vector2(mw, gy), grid_col, 1.5)
+	var edge := Vector2.ONE * ARENA_EDGE_INSET
+	draw_rect(Rect2(edge, Vector2(mw, mh) - edge * 2.0), Color(0.67, 0.74, 0.76, 0.64), false, 2.0)
 
 	# Obstacles & Hazards
 	for obs in _stage_data.get("obstacles", []):
@@ -2800,7 +2929,7 @@ func _draw() -> void:
 			ComicActorDraw.draw_maya_ranger(self, maya_pos, _visual_time, gather_center - maya_pos)
 	else:
 		draw_rect(Rect2(m_pos.x - 28, m_pos.y - 28, 56, 56), Color("#F59E0B"), false, 3.0)
-		var maya_target := GameRules.select_aim_target(m_pos.x, m_pos.y, null, enemies, 620.0)
+		var maya_target := GameRules.select_aim_target(m_pos.x, m_pos.y, null, visible_enemies, 620.0)
 		var maya_aim := Vector2(float(maya_target["x"]) - m_pos.x, float(maya_target["y"]) - m_pos.y) if not maya_target.is_empty() else Vector2.RIGHT
 		var maya_recoil := clampf(maya_fire_timer * 3.0, 0.0, 1.0)
 		ComicActorDraw.draw_maya_ranger(self, m_pos, _visual_time, maya_aim, maya_recoil)
@@ -2860,7 +2989,7 @@ func _draw() -> void:
 			draw_circle(bp, 16.0, Color("#0EA5E9"))
 	for c in clones:
 		var cp := Vector2(float(c["x"]), float(c["y"]))
-		var clone_near := GameRules.select_aim_target(cp.x, cp.y, null, enemies, 480.0)
+		var clone_near := GameRules.select_aim_target(cp.x, cp.y, null, visible_enemies, 480.0)
 		var clone_target := Vector2(float(clone_near["x"]), float(clone_near["y"])) if not clone_near.is_empty() else cp + Vector2.RIGHT.rotated(float(player["angle"])) * 100.0
 		ComicActorDraw.draw_clone(self, c, _visual_time, clone_target)
 
@@ -2900,7 +3029,7 @@ func _draw() -> void:
 		ComicActorDraw.draw_corpse(self, visual, position, dragging)
 
 	# Enemies
-	for e in enemies:
+	for e in visible_enemies:
 		var ep := Vector2(float(e["x"]), float(e["y"]))
 		var er := float(e["radius"])
 		var face_target := _nearest_visible_player_pos(ep)
@@ -2945,3 +3074,13 @@ func _draw() -> void:
 			draw_rect(Rect2(0, 0, mw, mh), Color(tc.r, tc.g, tc.b, alpha * 0.62))
 			for lan in _stage_data.get("lanterns", []):
 				draw_circle(Vector2(float(lan["x"]), float(lan["y"])), float(lan["radius"]) * 0.65, Color(1.0, 0.92, 0.6, 0.14))
+
+	for bunker in bunkers:
+		var bounds := GameRules.get_bunker_bounds(bunker)
+		var center := _actor_position(bunker)
+		var light_x := float(bounds["half_w"]) + 14.0
+		for offset in [-light_x, light_x]:
+			var light := center + Vector2(float(offset), -42.0)
+			draw_circle(light, 60.0, Color(1.0, 0.72, 0.28, 0.06))
+			draw_circle(light, 30.0, Color(1.0, 0.78, 0.39, 0.12))
+			draw_circle(light, 6.0, Color("#FDE68A"))

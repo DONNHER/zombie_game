@@ -1,6 +1,6 @@
 extends Node
 
-const BASE_VERSION := "1.0.2"
+const BASE_VERSION := "1.0.3"
 const MAX_PATCH_BYTES := 64 * 1024 * 1024
 const DOWNLOAD_PATH := "user://update_download.pck"
 const RECEIPT_PATH := "user://update.cfg"

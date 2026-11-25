@@ -14,8 +14,6 @@ signal server_error(message: String)
 signal realtime_disconnected(reason: String)
 
 const DEFAULT_SERVER_KEY := "defaultkey"
-const DEFAULT_SERVER_URL := "https://mardi-interest-postal-memorabilia.trycloudflare.com"
-const PREVIOUS_DEFAULT_URL := "https://bedrooms-value-expand-arch.trycloudflare.com"
 const COLLECTION_SAVES := "player_saves"
 const KEY_PROFILE := "profile_v1"
 
@@ -38,7 +36,7 @@ func check_patch_status() -> Dictionary:
 	return _decode_rpc_response(response)
 
 var server_key: String = DEFAULT_SERVER_KEY
-var server_url: String = DEFAULT_SERVER_URL
+var server_url: String = GameData.NAKAMA_SERVER_URL
 var session_token: String = ""
 var auth_user: Dictionary = {} # {user_id, username, is_guest}
 var is_online: bool = false
@@ -63,9 +61,9 @@ func _ready() -> void:
 	var env_key := OS.get_environment("NAKAMA_SERVER_KEY").strip_edges()
 	server_key = env_key if env_key != "" else DEFAULT_SERVER_KEY
 	var env_url := OS.get_environment("NAKAMA_SERVER_URL").strip_edges().rstrip("/")
-	var saved_url := str(SaveManager.settings.get("server_url", DEFAULT_SERVER_URL)).rstrip("/")
-	if saved_url.is_empty() or saved_url == PREVIOUS_DEFAULT_URL:
-		saved_url = DEFAULT_SERVER_URL
+	var stored_url := str(SaveManager.settings.get("server_url", ""))
+	var saved_url := GameData.resolve_nakama_url(stored_url)
+	if saved_url != stored_url:
 		SaveManager.write_settings({"server_url": saved_url})
 	server_url = env_url if env_url != "" else saved_url
 
@@ -97,11 +95,8 @@ func _process(_delta: float) -> void:
 
 
 func set_server_url(url: String) -> void:
-	var cleaned := url.strip_edges().rstrip("/")
-	if cleaned == "":
-		cleaned = DEFAULT_SERVER_URL
-	server_url = cleaned
-	SaveManager.write_settings({"server_url": cleaned})
+	server_url = GameData.resolve_nakama_url(url)
+	SaveManager.write_settings({"server_url": server_url})
 
 
 func _set_error(msg: String) -> void:

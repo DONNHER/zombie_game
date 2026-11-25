@@ -28,6 +28,12 @@ var _hud_overlay_paused: bool = false
 
 func _ready() -> void:
 	arena.bind_hud(hud)
+	# The OTA loader in older APKs keeps their original NetworkManager script.
+	if OS.get_environment("NAKAMA_SERVER_URL").strip_edges().is_empty():
+		var current_url := NetworkManager.server_url
+		var resolved_url := GameData.resolve_nakama_url(current_url)
+		if current_url != resolved_url:
+			NetworkManager.set_server_url(resolved_url)
 	get_tree().auto_accept_quit = false
 	get_tree().quit_on_go_back = false
 	settings_modal.quit_requested.connect(_request_quit)
